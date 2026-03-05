@@ -1,0 +1,42 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Allow access to auth pages, API routes, and static files
+  if (
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/uploads/") ||
+    pathname === "/"
+  ) {
+    return NextResponse.next();
+  }
+
+  // Get session from cookie
+  const sessionCookie = request.cookies.get("next-auth.session-token")?.value;
+  
+  // If no session, redirect to sign in
+  if (!sessionCookie) {
+    return NextResponse.redirect(new URL("/auth/signin", request.url));
+  }
+
+  // For now, allow access to all routes for authenticated users
+  // The profile completion check will be handled at the page level
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico|uploads).*)",
+  ],
+};
