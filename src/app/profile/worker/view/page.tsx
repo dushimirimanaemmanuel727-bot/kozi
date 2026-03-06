@@ -165,7 +165,7 @@ export default function ViewWorkerProfile() {
                     <div className="flex justify-between py-2">
                       <span className="text-gray-600">Min Monthly Pay</span>
                       <span className="font-medium text-gray-900">
-                        {profile.minMonthlyPay ? `RWF ${profile.minMonthlyPay.toLocaleString()}` : "Not specified"}
+                        {profile.minMonthlyPay ? `FRW ${profile.minMonthlyPay.toLocaleString()}` : "Not specified"}
                       </span>
                     </div>
                   </div>

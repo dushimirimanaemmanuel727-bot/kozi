@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/dashboard-layout";
+import { useNotification } from "@/contexts/notification-context";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface JobApplication {
   id: string;
@@ -31,6 +33,14 @@ export default function AppliedJobs() {
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const notification = useNotification();
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
+
+  const showNotification = (message: string, type: "success" | "error") => {
+    if (notification) {
+      notification.addNotification(message, type);
+    }
+  };
 
   useEffect(() => {
     if (!session) {
@@ -96,6 +106,38 @@ export default function AppliedJobs() {
       month: "short",
       day: "numeric",
     });
+  };
+
+  const handleWithdrawApplication = async (applicationId: string) => {
+    const confirmed = await confirm({
+      title: "Withdraw Application",
+      message: "Are you sure you want to withdraw this application? This action cannot be undone.",
+      confirmText: "Withdraw",
+      cancelText: "Keep Application",
+      type: "danger"
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/applications/${applicationId}/withdraw`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        showNotification("Application withdrawn successfully", "success");
+        // Remove the application from the list
+        setApplications(applications.filter(app => app.id !== applicationId));
+      } else {
+        const errorData = await response.json();
+        showNotification(errorData.error || "Failed to withdraw application", "error");
+      }
+    } catch (err) {
+      console.error("Withdraw error:", err);
+      showNotification("Network error. Please try again.", "error");
+    }
   };
 
   if (!session || session.user.role !== "WORKER") {
@@ -193,11 +235,13 @@ export default function AppliedJobs() {
                     {application.status === "PENDING" && (
                       <>
                         <button
+                          onClick={() => router.push(`/jobs/${application.job.id}`)}
                           className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
                         >
                           View Job Details
                         </button>
                         <button
+                          onClick={() => handleWithdrawApplication(application.id)}
                           className="flex-1 bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
                         >
                           Withdraw Application
@@ -207,11 +251,13 @@ export default function AppliedJobs() {
                     {application.status === "ACCEPTED" && (
                       <>
                         <button
+                          onClick={() => router.push(`/jobs/${application.job.id}`)}
                           className="flex-1 bg-green-100 text-green-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-200 transition-colors"
                         >
                           Contact Employer
                         </button>
                         <button
+                          onClick={() => router.push(`/jobs/${application.job.id}`)}
                           className="flex-1 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
                         >
                           View Job Details
@@ -221,11 +267,13 @@ export default function AppliedJobs() {
                     {application.status === "REJECTED" && (
                       <>
                         <button
+                          onClick={() => router.push(`/jobs/${application.job.id}`)}
                           className="flex-1 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
                         >
                           View Job Details
                         </button>
                         <button
+                          onClick={() => router.push("/jobs")}
                           className="flex-1 bg-purple-100 text-purple-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition-colors"
                         >
                           Find Similar Jobs
@@ -239,6 +287,9 @@ export default function AppliedJobs() {
           )}
         </div>
       </div>
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialogComponent />
     </DashboardLayout>
   );
 }

@@ -2,18 +2,19 @@
 
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
-import { useNotifications } from "@/components/ui/notification-toast";
+import { useToast } from "@/components/ui/toast";
+import { useRouter } from "next/navigation";
 
 export default function NewJobPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { showNotification } = useNotifications();
+  const { success, error } = useToast();
+  const router = useRouter();
 
   async function createJob(formData: FormData) {
     setIsSubmitting(true);
     
     try {
       const body = {
-        employerPhone: formData.get("employerPhone"),
         title: formData.get("title"),
         category: formData.get("category"),
         description: formData.get("description"),
@@ -29,31 +30,16 @@ export default function NewJobPage() {
       });
 
       if (response.ok) {
-        showNotification({
-          type: "success",
-          title: "Job Posted Successfully!",
-          message: "Your job has been posted and is now visible to workers.",
-          duration: 5000
-        });
-        // Reset form
-        const form = document.getElementById("job-form") as HTMLFormElement;
-        if (form) form.reset();
+        success("Job posted successfully! Your job is now visible to workers.");
+        // Redirect to my jobs page
+        router.push("/jobs/my-jobs");
       } else {
         const errorData = await response.json().catch(() => ({}));
-        showNotification({
-          type: "error",
-          title: "Failed to Post Job",
-          message: errorData.error || "Please check your information and try again.",
-          duration: 6000
-        });
+        error(errorData.error || "Failed to post job. Please check your information and try again.");
       }
-    } catch (error) {
-      showNotification({
-        type: "error",
-        title: "Network Error",
-        message: "Unable to connect to the server. Please check your internet connection and try again.",
-        duration: 6000
-      });
+    } catch (err) {
+      console.error("Job creation error:", err);
+      error("Network error. Unable to connect to the server. Please check your internet connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -92,11 +78,19 @@ export default function NewJobPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Budget (RWF)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Monthly Budget (FRW)</label>
                 <input 
                   type="number" 
                   name="budget" 
                   placeholder="e.g., 50000" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Application Deadline</label>
+                <input 
+                  type="datetime-local" 
+                  name="deadline" 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>

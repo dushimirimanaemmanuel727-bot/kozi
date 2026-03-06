@@ -95,7 +95,7 @@ export default async function JobsPage({
               <input
                 type="number"
                 name="minBudget"
-                placeholder="Min RWF"
+                placeholder="Min FRW"
                 defaultValue={searchParams.minBudget ?? ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
@@ -106,7 +106,7 @@ export default async function JobsPage({
               <input
                 type="number"
                 name="maxBudget"
-                placeholder="Max RWF"
+                placeholder="Max FRW"
                 defaultValue={searchParams.maxBudget ?? ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />

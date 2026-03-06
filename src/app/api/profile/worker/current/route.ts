@@ -15,8 +15,18 @@ export async function GET() {
       return NextResponse.json({ error: "Not a worker" }, { status: 403 });
     }
 
+    // Get worker user ID from session phone
+    const worker = await prisma.user.findUnique({
+      where: { phone: session.user.phone },
+      select: { id: true }
+    });
+
+    if (!worker) {
+      return NextResponse.json({ error: "Worker not found" }, { status: 404 });
+    }
+
     const workerProfile = await prisma.workerProfile.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: worker.id },
       include: {
         user: {
           select: {

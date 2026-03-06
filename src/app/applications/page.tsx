@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/dashboard-layout";
+import { useNotification } from "@/contexts/notification-context";
 
 interface Application {
   id: string;
@@ -37,6 +38,17 @@ export default function Applications() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
+  const notification = useNotification();
+
+  const showNotification = (message: string, type: "success" | "error") => {
+    if (notification) {
+      notification.addNotification(message, type);
+    }
+  };
+
+  const handleViewWorkerProfile = (workerId: string) => {
+    router.push(`/workers/${workerId}`);
+  };
 
   useEffect(() => {
     if (session?.user.role !== "EMPLOYER") {
@@ -109,16 +121,23 @@ export default function Applications() {
       const response = await fetch(`/api/applications/${applicationId}/accept`, {
         method: "POST",
       });
+      
+      const data = await response.json();
+      
       if (response.ok) {
+        showNotification("Application accepted successfully!", "success");
         // Refresh applications
         const updatedApplications = applications.map(app =>
           app.id === applicationId ? { ...app, status: "ACCEPTED" } : app
         );
         setApplications(updatedApplications);
+      } else {
+        showNotification(data.error || "Failed to accept application", "error");
       }
-    } catch {
-        setError("Failed to accept application");
-      }
+    } catch (error) {
+      console.error("Accept application error:", error);
+      showNotification("Network error. Please try again.", "error");
+    }
   };
 
   const handleRejectApplication = async (applicationId: string) => {
@@ -126,16 +145,23 @@ export default function Applications() {
       const response = await fetch(`/api/applications/${applicationId}/reject`, {
         method: "POST",
       });
+      
+      const data = await response.json();
+      
       if (response.ok) {
+        showNotification("Application rejected successfully!", "success");
         // Refresh applications
         const updatedApplications = applications.map(app =>
           app.id === applicationId ? { ...app, status: "REJECTED" } : app
         );
         setApplications(updatedApplications);
+      } else {
+        showNotification(data.error || "Failed to reject application", "error");
       }
-    } catch {
-        setError("Failed to reject application");
-      }
+    } catch (error) {
+      console.error("Reject application error:", error);
+      showNotification("Network error. Please try again.", "error");
+    }
   };
 
   if (!session || session.user.role !== "EMPLOYER") {
@@ -289,20 +315,35 @@ export default function Applications() {
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-semibold text-gray-900">{application.worker.name}</h4>
                           <div className="flex items-center space-x-2 text-sm">
-                            <div className="flex items-center">
-                              {[...Array(5)].map((_, i) => (
-                                <svg
-                                  key={i}
-                                  className={`w-4 h-4 ${i < Math.floor(application.worker.rating) ? "text-yellow-400" : "text-gray-300"}`}
-                                  fill="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 01.69.694l.33 1.108c.43.288.824.588 1.163.886l.215.125c.437.264.785.559 1.466.559.686 0 1.342-.108 1.787-.32l.189-.096c.147-.07.37-.141.632-.255.456-.083.873-.262 1.26-.425l.159-.052c.417-.137.806-.321 1.165-.688.357-.367.676-.774.93-1.207.332-.714.578-1.486.69-2.311.196-1.12.496-2.313.69-3.446.196-.894.496-1.785.69-2.313.69-1.342m0 0a1 1 0 001 1v3a1 1 0 001 1h1a1 1 0 001-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 001 1h1" />
-                                </svg>
-                              ))}
-                            </div>
+                            {application.worker.rating ? (
+                              <div className="flex items-center space-x-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <svg
+                                    key={i}
+                                    className={`w-4 h-4 ${i < Math.floor(application.worker.rating) ? "text-yellow-400" : "text-gray-300"}`}
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 01.69.694l.33 1.108c.43.288.824.588 1.163.886l.215.125c.437.264.785.559 1.466.559.686 0 1.342-.108 1.787-.32l.189-.096c.147-.07.37-.141.632-.255.456-.083.873-.262 1.26-.425l.159-.052c.417-.137.806-.321 1.165-.688.357-.367.676-.774.93-1.207.332-.714.578-1.486.69-2.311.196-1.12.496-2.313.69-3.446.196-.894.496-1.785.69-2.313.69-1.342m0 0a1 1 0 001 1v3a1 1 0 001 1h1a1 1 0 001-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 001 1h1" />
+                                  </svg>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="flex items-center space-x-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <svg
+                                    key={i}
+                                    className="w-4 h-4 text-gray-300"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 01.69.694l.33 1.108c.43.288.824.588 1.163.886l.215.125c.437.264.785.559 1.466.559.686 0 1.342-.108 1.787-.32l.189-.096c.147-.07.37-.141.632-.255.456-.083.873-.262 1.26-.425l.159-.052c.417-.137.806-.321 1.165-.688.357-.367.676-.774.93-1.207.332-.714.578-1.486.69-2.311.196-1.12.496-2.313.69-3.446.196-.894.496-1.785.69-2.313.69-1.342m0 0a1 1 0 001 1v3a1 1 0 001 1h1a1 1 0 001-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 001 1h1" />
+                                  </svg>
+                                ))}
+                              </div>
+                            )}
                             <span className="text-gray-600">
-                              {application.worker.rating.toFixed(1)} ({application.worker.reviewCount} reviews)
+                              {application.worker.rating ? `${application.worker.rating.toFixed(1)} (${application.worker.reviewCount || 0} reviews)` : "No reviews yet"}
                             </span>
                           </div>
                         </div>
@@ -344,6 +385,7 @@ export default function Applications() {
                           Reject Application
                         </button>
                         <button
+                          onClick={() => handleViewWorkerProfile(application.worker.id)}
                           className="flex-1 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
                         >
                           View Worker Profile
@@ -358,6 +400,7 @@ export default function Applications() {
                           Contact Worker
                         </button>
                         <button
+                          onClick={() => handleViewWorkerProfile(application.worker.id)}
                           className="flex-1 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
                         >
                           View Worker Profile
@@ -366,6 +409,7 @@ export default function Applications() {
                     )}
                     {application.status === "REJECTED" && (
                       <button
+                        onClick={() => handleViewWorkerProfile(application.worker.id)}
                         className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
                       >
                         View Worker Profile

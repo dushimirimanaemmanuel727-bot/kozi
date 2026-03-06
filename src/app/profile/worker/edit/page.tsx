@@ -248,7 +248,7 @@ export default function EditWorkerProfile() {
 
                 <div>
                   <label htmlFor="minMonthlyPay" className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Monthly Pay (RWF)
+                    Minimum Monthly Pay (FRW)
                   </label>
                   <input
                     type="number"
@@ -289,21 +289,6 @@ export default function EditWorkerProfile() {
                     id="skills"
                     name="skills"
                     value={formData.skills}
-                    onChange={handleInputChange}
-                    rows={3}
-                    placeholder="Describe your skills (e.g., cooking, cleaning, child care)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">
-                    About You
-                  </label>
-                  <textarea
-                    id="bio"
-                    name="bio"
-                    value={formData.bio}
                     onChange={handleInputChange}
                     rows={4}
                     placeholder="Tell employers about yourself, your experience, and what makes you a great worker..."

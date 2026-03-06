@@ -15,10 +15,20 @@ export async function GET() {
       return NextResponse.json({ error: "Only employers can view applications" }, { status: 403 });
     }
 
+    // Get employer user ID from session phone
+    const employer = await prisma.user.findUnique({
+      where: { phone: session.user.phone },
+      select: { id: true }
+    });
+
+    if (!employer) {
+      return NextResponse.json({ error: "Employer not found" }, { status: 404 });
+    }
+
     const applications = await prisma.application.findMany({
       where: {
         job: {
-          employerId: session.user.id
+          employerId: employer.id
         }
       },
       include: {
@@ -34,12 +44,16 @@ export async function GET() {
           }
         },
         worker: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            district: true,
-            languages: true
+          include: {
+            workerProfile: {
+              select: {
+                category: true,
+                experienceYears: true,
+                rating: true,
+                reviewCount: true,
+                photoUrl: true
+              }
+            }
           }
         }
       },

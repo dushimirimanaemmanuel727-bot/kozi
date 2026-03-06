@@ -11,7 +11,7 @@ export default async function WorkerProfilePage({ params }: PageProps) {
   const { id } = await params;
   
   const worker = await prisma.workerProfile.findUnique({
-    where: { id },
+    where: { userId: id },
     include: {
       user: {
         select: { 
