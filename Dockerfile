@@ -4,7 +4,7 @@ FROM node:20-alpine AS base
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat openssl3-dev
+RUN apk add --no-cache libc6-compat openssl-dev
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -13,7 +13,7 @@ RUN npm ci --ignore-scripts
 
 # Rebuild the source code only when needed
 FROM base AS builder
-RUN apk add --no-cache libc6-compat openssl3-dev
+RUN apk add --no-cache libc6-compat openssl-dev
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -24,6 +24,7 @@ ENV PRISMA_CLI_BINARY_TARGETS="linux-musl"
 ENV OPENSSL_DIR="/usr/lib"
 ENV OPENSSL_LIB_DIR="/usr/lib"
 ENV OPENSSL_INCLUDE_DIR="/usr/include"
+ENV PKG_CONFIG_PATH="/usr/lib/pkgconfig"
 RUN npx prisma generate
 
 # Build the application
@@ -39,9 +40,10 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Install OpenSSL for Prisma
-RUN apk add --no-cache openssl3
+RUN apk add --no-cache openssl
 
-COPY --from=builder /app/public ./public
+# Copy public files from builder stage
+COPY --from=builder /app/public ./public/
 
 # Set the correct permission for prerender cache
 RUN mkdir .next

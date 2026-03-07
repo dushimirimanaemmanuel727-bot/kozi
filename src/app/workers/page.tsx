@@ -1,7 +1,29 @@
-import { prisma } from "@/lib/prisma";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard-layout";
+
+type WorkerProfile = {
+  id: string;
+  category: string;
+  availability: string;
+  liveIn: boolean;
+  experienceYears: number;
+  rating: number;
+  reviewCount: number;
+  photoUrl?: string;
+  skills?: string;
+  bio?: string;
+  user?: {
+    id: string;
+    name: string;
+    phone: string;
+    district?: string;
+    languages?: string;
+  };
+};
 
 type SearchParams = {
   category?: string;
@@ -12,44 +34,59 @@ type SearchParams = {
   q?: string;
 };
 
-export default async function WorkersPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const where: Prisma.WorkerProfileWhereInput = {};
-  if (searchParams.category) where.category = searchParams.category;
-  if (searchParams.availability) where.availability = searchParams.availability;
-  if (searchParams.liveIn === "true") where.liveIn = true;
-  if (searchParams.minExp) where.experienceYears = { gte: Number(searchParams.minExp) || 0 };
-  if (searchParams.q)
-    where.OR = [
-      { skills: { contains: searchParams.q, mode: "insensitive" } },
-      { bio: { contains: searchParams.q, mode: "insensitive" } },
-    ];
+export default function WorkersPage() {
+  const [workers, setWorkers] = useState<WorkerProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useState<SearchParams>({});
 
-  const usersWhere: Prisma.UserWhereInput = { role: "WORKER" };
-  if (searchParams.district) usersWhere.district = searchParams.district;
+  useEffect(() => {
+    const fetchWorkers = async () => {
+      try {
+        const params = new URLSearchParams();
+        Object.entries(searchParams).forEach(([key, value]) => {
+          if (value) params.append(key, value);
+        });
 
-  const workers = await prisma.workerProfile.findMany({
-    where: {
-      ...where,
-      user: { is: usersWhere },
-    },
-    include: {
-      user: {
-        select: { id: true, name: true, phone: true, district: true, languages: true },
-      },
-    },
-    orderBy: [{ rating: "desc" }, { reviewCount: "desc" }],
-    take: 50,
-  });
+        const response = await fetch(`/api/workers?${params.toString()}`);
+        if (response.ok) {
+          const data = await response.json();
+          setWorkers(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch workers:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkers();
+  }, [searchParams]);
+
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newParams: SearchParams = {};
+    
+    formData.forEach((value, key) => {
+      if (key === "liveIn") {
+        newParams[key] = value === "true" ? "true" : undefined;
+      } else if (value) {
+        newParams[key as keyof SearchParams] = value as string;
+      }
+    });
+    
+    setSearchParams(newParams);
+  };
+
+  const handleReset = () => {
+    setSearchParams({});
+  };
 
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto py-6 px-6">
         <h1 className="mb-4 text-2xl font-semibold">Browse Workers</h1>
-        <form className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-6">
+        <form onSubmit={handleSearch} className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-6">
           <select name="category" defaultValue={searchParams.category ?? ""} className="rounded border p-2">
             <option value="">Category</option>
             {["NANNY","COOK","CLEANER","GARDENER","SECURITY","DRIVER","LAUNDRY"].map((c) => (
@@ -85,16 +122,25 @@ export default async function WorkersPage({
             Live-in
           </label>
           <input name="q" placeholder="Search skills" defaultValue={searchParams.q ?? ""} className="rounded border p-2" />
-          <button className="col-span-2 rounded bg-black p-2 text-white sm:col-span-1">Apply</button>
-          <Link href="/workers" className="col-span-2 rounded border p-2 text-center sm:col-span-1">
+          <button type="submit" className="col-span-2 rounded bg-black p-2 text-white sm:col-span-1">Apply</button>
+          <button type="button" onClick={handleReset} className="col-span-2 rounded border p-2 text-center sm:col-span-1">
             Reset
-          </Link>
+          </button>
         </form>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {workers
-            .filter((w) => w.user)
-            .map((w) => (
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-gray-500">Loading workers...</div>
+          </div>
+        ) : workers.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-500">No workers found matching your criteria.</div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {workers
+              .filter((w) => w.user)
+              .map((w) => (
               <div key={w.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
                 {/* Profile Header */}
                 <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-4">
@@ -218,7 +264,8 @@ export default async function WorkersPage({
                 </div>
               </div>
             ))}
-        </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

@@ -39,21 +39,23 @@ export async function GET(req: NextRequest) {
     .filter((w) => !!w.user)
     .map((w) => ({
       id: w.id,
-      name: w.user!.name,
-      phone: w.user!.phone,
-      district: w.user!.district,
-      languages: w.user!.languages,
       category: w.category,
       availability: w.availability,
-      experienceYears: w.experienceYears,
-      minMonthlyPay: w.minMonthlyPay,
       liveIn: w.liveIn,
-      skills: w.skills,
+      experienceYears: w.experienceYears,
       rating: w.rating,
       reviewCount: w.reviewCount,
       photoUrl: w.photoUrl,
+      skills: w.skills,
       bio: w.bio,
+      user: {
+        id: w.user!.id,
+        name: w.user!.name,
+        phone: w.user!.phone,
+        district: w.user!.district,
+        languages: w.user!.languages,
+      },
     }));
 
-  return NextResponse.json({ workers: data });
+  return NextResponse.json(data);
 }
