@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { signOut, useSession } from "next-auth/react";
-import { Bell, Search, User, LogOut, Settings, Menu } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Bell, Search, User, Settings, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import SignOutButton from "@/components/auth/sign-out-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,9 +71,8 @@ export function AdminHeader({ session }: AdminHeaderProps) {
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Log out
+              <DropdownMenuItem asChild>
+                <SignOutButton variant="compact" />
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

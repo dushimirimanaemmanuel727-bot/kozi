@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { signOut } from "next-auth/react";
+import { LogOut } from "lucide-react";
 
-export default function SignOutButton() {
+interface SignOutButtonProps {
+  variant?: "full" | "compact";
+}
+
+export default function SignOutButton({ variant = "full" }: SignOutButtonProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -18,6 +23,20 @@ export default function SignOutButton() {
       setIsSigningOut(false);
     }
   };
+
+  // Compact version for dropdown menus
+  if (variant === "compact") {
+    return (
+      <button
+        onClick={handleSignOut}
+        disabled={isSigningOut}
+        className="w-full flex items-center text-sm text-gray-700 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <LogOut className="w-4 h-4 mr-2" />
+        {isSigningOut ? "Signing Out..." : "Log out"}
+      </button>
+    );
+  }
 
   return (
     <>
