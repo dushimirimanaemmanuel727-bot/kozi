@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/router";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic';
 
 // API functions
 export async function getDashboardStats() {
@@ -138,7 +140,7 @@ export default function EmployerDashboard() {
         <div className="text-center">
           <p className="text-red-600 mb-4">Error loading dashboard: {error.message}</p>
           <button 
-            onClick={() => router.reload()}
+            onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Retry
