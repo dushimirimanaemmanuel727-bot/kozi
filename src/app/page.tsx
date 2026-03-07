@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import NavigationBar from "@/components/landing/navigation-bar";
 import HeroSection from "@/components/landing/hero-section";
 import FeaturesSection from "@/components/landing/features-section";
+import RecentJobsSection from "@/components/landing/recent-jobs-section";
 import HowItWorks from "@/components/landing/how-it-works";
 import TestimonialsSection from "@/components/landing/testimonials-section";
 import FooterSection from "@/components/landing/footer-section";
@@ -17,7 +18,9 @@ export default function HomePage() {
   useEffect(() => {
     if (session) {
       // Redirect to dashboard based on user role
-      if (session.user?.role === "EMPLOYER") {
+      if (session.user?.role === "SUPERADMIN" || session.user?.role === "ADMIN") {
+        router.push("/admin");
+      } else if (session.user?.role === "EMPLOYER") {
         router.push("/dashboard");
       } else if (session.user?.role === "WORKER") {
         router.push("/dashboard");
@@ -40,6 +43,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       <NavigationBar />
       <HeroSection />
+      <RecentJobsSection />
       <FeaturesSection />
       <HowItWorks />
       <TestimonialsSection />

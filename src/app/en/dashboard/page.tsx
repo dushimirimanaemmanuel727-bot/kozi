@@ -2,18 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import StatsCard from "@/components/dashboard/stats-card";
 import ChartContainer from "@/components/dashboard/chart-container";
-import SimpleBarChart from "@/components/dashboard/simple-bar-chart";
+import AvailableWorkers from "@/components/dashboard/available-workers";
 import ActivityFeed from "@/components/dashboard/activity-feed";
-import QuickActions from "@/components/dashboard/quick-actions";
 import Link from "next/link";
 
 interface DashboardStats {
-  activeJobs: number;
-  pendingApplications: number;
-  workersHired: number;
+  activeJobs?: number;
+  pendingApplications?: number;
+  workersHired?: number;
+  totalApplications?: number;
+  acceptedApplications?: number;
+  rejectedApplications?: number;
+  profileCompletion?: number;
 }
 
 interface AnalyticsData {
@@ -45,12 +49,12 @@ interface AnalyticsData {
 
 interface WorkerAnalyticsData {
   applicationStatusDistribution: Array<{ status: string; _count: { id: number } }>;
-  applicationsTrend: Array<{ createdAt: string; _count: { id: number } }>;
+  applicationsTrend: Array<{ month: string; count: number }>;
   recommendedJobs: Array<{
     id: string;
     title: string;
     category: string;
-    salary: number;
+    budget?: number;
     district: string;
     employer: {
       name: string;
@@ -79,10 +83,19 @@ interface WorkerAnalyticsData {
 
 export default function Dashboard() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsData | WorkerAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect admin users to admin dashboard
+  useEffect(() => {
+    if (session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPERADMIN') {
+      router.push('/admin');
+      return;
+    }
+  }, [session, router]);
 
   useEffect(() => {
     async function fetchData() {
@@ -92,14 +105,26 @@ export default function Dashboard() {
         setLoading(true);
         
         // Fetch basic stats
-        const statsResponse = await fetch("/api/dashboard/employer/stats");
-        if (!statsResponse.ok && session.user.role === "EMPLOYER") {
-          throw new Error("Failed to fetch dashboard stats");
-        }
+        let statsData = null;
         if (session.user.role === "EMPLOYER") {
-          const statsData: DashboardStats = await statsResponse.json();
-          setStats(statsData);
+          const statsResponse = await fetch("/api/dashboard/employer/stats");
+          console.log("Employer stats response status:", statsResponse.status);
+          if (!statsResponse.ok) {
+            throw new Error("Failed to fetch dashboard stats");
+          }
+          statsData = await statsResponse.json();
+        } else if (session.user.role === "WORKER") {
+          const statsResponse = await fetch("/api/dashboard/worker/stats");
+          console.log("Worker stats response status:", statsResponse.status);
+          if (!statsResponse.ok) {
+            const errorData = await statsResponse.json();
+            console.error("Worker stats error:", errorData);
+            throw new Error(errorData.error || "Failed to fetch dashboard stats");
+          }
+          statsData = await statsResponse.json();
+          console.log("Worker stats data:", statsData);
         }
+        setStats(statsData);
 
         // Fetch analytics data
         const analyticsEndpoint = session.user.role === "EMPLOYER" 
@@ -107,10 +132,14 @@ export default function Dashboard() {
           : "/api/dashboard/worker/analytics";
         
         const analyticsResponse = await fetch(analyticsEndpoint);
+        console.log("Analytics response status:", analyticsResponse.status);
         if (!analyticsResponse.ok) {
-          throw new Error("Failed to fetch analytics data");
+          const errorData = await analyticsResponse.json();
+          console.error("Analytics error:", errorData);
+          throw new Error(errorData.error || "Failed to fetch analytics data");
         }
         const analyticsData = await analyticsResponse.json();
+        console.log("Analytics data:", analyticsData);
         setAnalytics(analyticsData);
         
       } catch (err: any) {
@@ -123,10 +152,21 @@ export default function Dashboard() {
     fetchData();
   }, [session]);
 
-  const formatChartData = (data: Array<{ createdAt: string; _count: { id: number } }>) => {
+  const formatChartData = (data: Array<{ createdAt: string; _count: { id: number } } | { month: string; count: number }>) => {
+    if (data.length === 0) return [];
+  
+    // Handle new trend data structure
+    if ('month' in data[0]) {
+      return data.map((item: any) => ({
+        label: item.month,
+        value: item.count
+      }));
+    }
+  
+    // Handle old data structure
     return data.map(item => ({
-      label: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      value: item._count.id
+      label: new Date((item as any).createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      value: (item as any)._count.id
     }));
   };
 
@@ -167,112 +207,65 @@ export default function Dashboard() {
     }
   };
 
-  const getQuickActions = () => {
-    if (session?.user?.role === "EMPLOYER") {
-      return [
-        {
-          id: "post-job",
-          title: "Post New Job",
-          description: "Create a new job posting",
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          ),
-          href: "/jobs/new",
-          color: "green" as const
-        },
-        {
-          id: "view-applications",
-          title: "Review Applications",
-          description: "Check pending applications",
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-          ),
-          href: "/applications",
-          color: "blue" as const
-        },
-        {
-          id: "browse-workers",
-          title: "Browse Workers",
-          description: "Find qualified workers",
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          ),
-          href: "/workers",
-          color: "purple" as const
-        },
-        {
-          id: "my-jobs",
-          title: "My Jobs",
-          description: "Manage your job postings",
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          ),
-          href: "/jobs/my-jobs",
-          color: "orange" as const
-        }
-      ];
-    } else {
-      return [
-        {
-          id: "browse-jobs",
-          title: "Browse Jobs",
-          description: "Find new opportunities",
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A9.001 9.001 0 0112 21a9.001 9.001 0 01-9-9.255A9.001 9.001 0 0112 3a9.001 9.001 0 019 9.255z" />
-            </svg>
-          ),
-          href: "/jobs",
-          color: "blue" as const
-        },
-        {
-          id: "edit-profile",
-          title: "Edit Profile",
-          description: "Update your information",
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          ),
-          href: "/profile/worker/edit",
-          color: "green" as const
-        },
-        {
-          id: "view-applications",
-          title: "My Applications",
-          description: "Track your applications",
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-          ),
-          href: "/jobs/applied",
-          color: "purple" as const
-        },
-        {
-          id: "reviews",
-          title: "Reviews",
-          description: "View your reviews",
-          icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.69.69l4.338.632c.925.134 1.294 1.27.624 1.921l-3.138 3.058a1 1 0 00-.286.894l.739 4.322c.165.962-.868 1.696-1.757 1.242l-3.881-2.041a1 1 0 00-.928 0l-3.881 2.041c-.889.454-1.922-.28-1.757-1.242l.739-4.322a1 1 0 00-.286-.894l-3.138-3.058c-.67-.651-.301-1.787.624-1.921l4.338-.632a1 1 0 00.69-.69l1.519-4.674z" />
-            </svg>
-          ),
-          href: "/reviews",
-          color: "orange" as const
-        }
-      ];
-    }
+  const getAvailableWorkers = () => {
+    // Sample worker data - in a real app, this would come from an API
+    return [
+      {
+        id: "1",
+        name: "John Doe",
+        skills: ["Plumbing", "Construction", "Electrical"],
+        experience: "5 years",
+        location: "Kigali",
+        expectedSalary: 500,
+        availability: "IMMEDIATE",
+        profileCompletion: 90,
+        photoUrl: undefined,
+        rating: 4.5,
+        jobApplications: 12
+      },
+      {
+        id: "2", 
+        name: "Jane Smith",
+        skills: ["Cleaning", "Cooking", "Childcare"],
+        experience: "3 years",
+        location: "Nyarugenge",
+        expectedSalary: 350,
+        availability: "WEEK",
+        profileCompletion: 85,
+        photoUrl: undefined,
+        rating: 4.8,
+        jobApplications: 8
+      },
+      {
+        id: "3",
+        name: "Robert Mugisha",
+        skills: ["Driving", "Logistics", "Delivery"],
+        experience: "7 years", 
+        location: "Kicukiro",
+        expectedSalary: 450,
+        availability: "IMMEDIATE",
+        profileCompletion: 95,
+        photoUrl: undefined,
+        rating: 4.2,
+        jobApplications: 15
+      },
+      {
+        id: "4",
+        name: "Grace Uwimana",
+        skills: ["Gardening", "Landscaping", "Farming"],
+        experience: "4 years",
+        location: "Gasabo",
+        expectedSalary: 300,
+        availability: "TWO_WEEKS",
+        profileCompletion: 80,
+        photoUrl: undefined,
+        rating: 4.6,
+        jobApplications: 6
+      }
+    ];
   };
 
+  
   if (loading) {
     return (
       <DashboardLayout>
@@ -316,17 +309,13 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <QuickActions actions={getQuickActions()} role={session?.user?.role as "EMPLOYER" | "WORKER"} />
-        </div>
-
+        
         {/* Stats Cards */}
         {session?.user?.role === "EMPLOYER" && stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatsCard
               title="Active Jobs"
-              value={stats.activeJobs}
+              value={stats.activeJobs ?? 0}
               icon={
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A9.001 9.001 0 0112 21a9.001 9.001 0 01-9-9.255A9.001 9.001 0 0112 3a9.001 9.001 0 019 9.255z" />
@@ -336,7 +325,7 @@ export default function Dashboard() {
             />
             <StatsCard
               title="Pending Applications"
-              value={stats.pendingApplications}
+              value={stats.pendingApplications ?? 0}
               icon={
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -346,7 +335,7 @@ export default function Dashboard() {
             />
             <StatsCard
               title="Workers Hired"
-              value={stats.workersHired}
+              value={stats.workersHired ?? 0}
               icon={
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -356,7 +345,7 @@ export default function Dashboard() {
             />
             <StatsCard
               title="Total Applications"
-              value={stats.pendingApplications + stats.workersHired}
+              value={(stats.pendingApplications ?? 0) + (stats.workersHired ?? 0)}
               icon={
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -419,37 +408,23 @@ export default function Dashboard() {
             {analytics && (
               <>
                 {session?.user?.role === "EMPLOYER" && (
-                  <>
-                    <ChartContainer
-                      title="Job Postings Trend"
-                      subtitle="Number of jobs posted over the last 6 months"
-                    >
-                      <SimpleBarChart
-                        data={formatChartData((analytics as AnalyticsData).jobPostingsTrend)}
-                        height={200}
-                      />
-                    </ChartContainer>
-
-                    <ChartContainer
-                      title="Applications Trend"
-                      subtitle="Number of applications received over the last 6 months"
-                    >
-                      <SimpleBarChart
-                        data={formatChartData((analytics as AnalyticsData).applicationsTrend)}
-                        height={200}
-                      />
-                    </ChartContainer>
-
-                    <ChartContainer
-                      title="Job Categories"
-                      subtitle="Distribution of jobs by category"
-                    >
-                      <SimpleBarChart
-                        data={formatCategoryData((analytics as AnalyticsData).categoryDistribution)}
-                        height={200}
-                      />
-                    </ChartContainer>
-                  </>
+                  <ChartContainer
+                    title="Available Workers"
+                    subtitle="Workers currently available for hire"
+                    actions={
+                      <Link
+                        href="/workers"
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        View All Workers →
+                      </Link>
+                    }
+                  >
+                    <AvailableWorkers 
+                      workers={getAvailableWorkers()} 
+                      loading={loading}
+                    />
+                  </ChartContainer>
                 )}
 
                 {session?.user?.role === "WORKER" && (
@@ -458,20 +433,50 @@ export default function Dashboard() {
                       title="Application Status"
                       subtitle="Your applications by status"
                     >
-                      <SimpleBarChart
-                        data={formatCategoryData((analytics as WorkerAnalyticsData).applicationStatusDistribution)}
-                        height={200}
-                      />
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-gray-50 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-600">{stats?.pendingApplications || 0}</div>
+                          <div className="text-sm text-gray-600">Pending</div>
+                        </div>
+                        <div className="text-center p-4 bg-gray-50 rounded-lg">
+                          <div className="text-2xl font-bold text-green-600">{stats?.acceptedApplications || 0}</div>
+                          <div className="text-sm text-gray-600">Accepted</div>
+                        </div>
+                        <div className="text-center p-4 bg-gray-50 rounded-lg">
+                          <div className="text-2xl font-bold text-red-600">{stats?.rejectedApplications || 0}</div>
+                          <div className="text-sm text-gray-600">Rejected</div>
+                        </div>
+                        <div className="text-center p-4 bg-gray-50 rounded-lg">
+                          <div className="text-2xl font-bold text-purple-600">{stats?.totalApplications || 0}</div>
+                          <div className="text-sm text-gray-600">Total</div>
+                        </div>
+                      </div>
                     </ChartContainer>
 
                     <ChartContainer
-                      title="Applications Trend"
-                      subtitle="Your application activity over the last 6 months"
+                      title="Profile Completion"
+                      subtitle="Complete your profile to get better job matches"
                     >
-                      <SimpleBarChart
-                        data={formatChartData((analytics as WorkerAnalyticsData).applicationsTrend)}
-                        height={200}
-                      />
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700">Profile Strength</span>
+                          <span className="text-sm text-gray-500">{stats?.profileCompletion || 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className="bg-blue-600 h-3 rounded-full transition-all duration-300" 
+                            style={{ width: `${stats?.profileCompletion || 0}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {stats?.profileCompletion && stats.profileCompletion >= 90 
+                            ? "Excellent! Your profile is complete."
+                            : stats?.profileCompletion && stats.profileCompletion >= 70
+                            ? "Good! Add more details to improve your profile."
+                            : "Complete your profile to get better job matches."
+                          }
+                        </div>
+                      </div>
                     </ChartContainer>
                   </>
                 )}
@@ -512,7 +517,9 @@ export default function Dashboard() {
                     <p className="text-sm text-gray-600 mb-1">{job.employer.name}</p>
                     <p className="text-sm text-gray-600 mb-1">{job.category}</p>
                     <p className="text-sm text-gray-600 mb-1">{job.district}</p>
-                    <p className="text-sm font-medium text-green-600">RWF {job.salary.toLocaleString()}/month</p>
+                    <p className="text-sm font-medium text-green-600">
+                      {job.budget ? `RWF ${job.budget.toLocaleString()}/month` : 'Salary not specified'}
+                    </p>
                     <div className="mt-3 flex items-center justify-between">
                       <span className="text-xs text-gray-500">{job._count.applications} applications</span>
                       <Link

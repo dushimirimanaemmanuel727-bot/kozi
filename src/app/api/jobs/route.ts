@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     // Get employer user ID from session
     const employer = await prisma.user.findUnique({
       where: { phone: session.user.phone },
-      select: { id: true }
+      select: { id: true, name: true }
     });
 
     if (!employer) {
@@ -42,6 +42,38 @@ export async function POST(req: NextRequest) {
         ...(deadlineDate && { deadline: deadlineDate }),
       },
     });
+
+    // Send notifications to all workers about the new job
+    try {
+      // Get all workers
+      const workers = await prisma.user.findMany({
+        where: { 
+          role: "WORKER",
+          // Optionally filter by workers who match the job category or district
+          workerProfile: {
+            category: category
+          }
+        },
+        select: { id: true }
+      });
+
+      // Create notifications for all matching workers
+      const notifications = workers.map(worker => ({
+        userId: worker.id,
+        title: "New Household Job",
+        message: `${employer.name} is looking for a ${category.toLowerCase()}: ${title}${districtStr ? ` in ${districtStr}` : ''}${budgetNum ? ` - ${budgetNum} FRW/month` : ''}`,
+        type: "JOB_POSTED"
+      }));
+
+      if (notifications.length > 0) {
+        await prisma.notification.createMany({
+          data: notifications
+        });
+      }
+    } catch (notificationError) {
+      console.error("Failed to send job notifications:", notificationError);
+      // Don't fail the job creation if notifications fail
+    }
 
     return NextResponse.json({ 
       message: "Job created successfully",

@@ -40,21 +40,32 @@ export async function GET() {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    const applicationsTrend = await prisma.application.groupBy({
-      by: ['createdAt'],
+    const applicationsTrend = await prisma.application.findMany({
       where: {
         workerId: worker.id,
         createdAt: {
           gte: sixMonthsAgo
         }
       },
-      _count: {
-        id: true
+      select: {
+        createdAt: true
       },
       orderBy: {
         createdAt: 'asc'
       }
     });
+
+    // Group by month for trend data
+    const trendByMonth = applicationsTrend.reduce((acc: any[], app) => {
+      const month = new Date(app.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const existingMonth = acc.find(item => item.month === month);
+      if (existingMonth) {
+        existingMonth.count += 1;
+      } else {
+        acc.push({ month, count: 1 });
+      }
+      return acc;
+    }, []);
 
     // Get recommended jobs (matching worker's skills and location)
     const workerProfile = await prisma.workerProfile.findUnique({
@@ -63,12 +74,33 @@ export async function GET() {
       },
       select: {
         category: true,
-        skills: true,
+        skills: true
+      }
+    });
+
+    // Get worker's district from user table
+    const workerUser = await prisma.user.findUnique({
+      where: {
+        id: worker.id
+      },
+      select: {
         district: true
       }
     });
 
-    let recommendedJobs = [];
+    let recommendedJobs: Array<{
+      id: string;
+      title: string;
+      category: string;
+      budget?: number | null;
+      district: string | null;
+      employer: {
+        name: string;
+      };
+      _count: {
+        applications: number;
+      };
+    }> = [];
     if (workerProfile) {
       recommendedJobs = await prisma.job.findMany({
         where: {
@@ -78,7 +110,7 @@ export async function GET() {
               category: workerProfile.category
             },
             {
-              district: workerProfile.district
+              district: workerUser?.district
             }
           ]
         },
@@ -141,7 +173,7 @@ export async function GET() {
 
     return NextResponse.json({
       applicationStatusDistribution,
-      applicationsTrend,
+      applicationsTrend: trendByMonth,
       recommendedJobs,
       recentApplications,
       stats: {
@@ -154,7 +186,10 @@ export async function GET() {
   } catch (error) {
     console.error("Worker dashboard analytics error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Failed to fetch analytics data",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }

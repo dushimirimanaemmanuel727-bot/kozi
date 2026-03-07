@@ -3,10 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import Modal from "@/components/ui/modal";
+import SignInPopup from "@/components/auth/signin-popup";
+import SignUpPopup from "@/components/auth/signup-popup";
 
 export default function NavigationBar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [showSignUpModal, setShowSignUpModal] = useState(false);
   const { data: session } = useSession();
 
   useEffect(() => {
@@ -33,6 +38,23 @@ export default function NavigationBar() {
         element.scrollIntoView({ behavior: "smooth" });
       }
     }
+  };
+
+  const openSignInModal = () => {
+    setShowSignInModal(true);
+    setShowSignUpModal(false);
+    setIsMobileMenuOpen(false);
+  };
+
+  const openSignUpModal = () => {
+    setShowSignUpModal(true);
+    setShowSignInModal(false);
+    setIsMobileMenuOpen(false);
+  };
+
+  const closeModals = () => {
+    setShowSignInModal(false);
+    setShowSignUpModal(false);
   };
 
   return (
@@ -83,8 +105,8 @@ export default function NavigationBar() {
               </Link>
             ) : (
               <>
-                <Link
-                  href="/auth/signin"
+                <button
+                  onClick={openSignInModal}
                   className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                     isScrolled 
                       ? "text-gray-700 hover:text-blue-600 border border-gray-300" 
@@ -92,13 +114,13 @@ export default function NavigationBar() {
                   }`}
                 >
                   Sign In
-                </Link>
-                <Link
-                  href="/auth/signup"
+                </button>
+                <button
+                  onClick={openSignUpModal}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
                   Sign Up
-                </Link>
+                </button>
               </>
             )}
           </div>
@@ -144,18 +166,18 @@ export default function NavigationBar() {
                   </Link>
                 ) : (
                   <>
-                    <Link
-                      href="/auth/signin"
+                    <button
+                      onClick={openSignInModal}
                       className="block w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors text-center"
                     >
                       Sign In
-                    </Link>
-                    <Link
-                      href="/auth/signup"
+                    </button>
+                    <button
+                      onClick={openSignUpModal}
                       className="block w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-center"
                     >
                       Sign Up
-                    </Link>
+                    </button>
                   </>
                 )}
               </div>
@@ -163,6 +185,24 @@ export default function NavigationBar() {
           </div>
         )}
       </div>
+      
+      {/* Sign In Modal */}
+      <Modal isOpen={showSignInModal} onClose={closeModals}>
+        <SignInPopup 
+          isOpen={showSignInModal} 
+          onClose={closeModals} 
+          onSwitchToSignup={openSignUpModal} 
+        />
+      </Modal>
+      
+      {/* Sign Up Modal */}
+      <Modal isOpen={showSignUpModal} onClose={closeModals}>
+        <SignUpPopup 
+          isOpen={showSignUpModal} 
+          onClose={closeModals} 
+          onSwitchToSignin={openSignInModal} 
+        />
+      </Modal>
     </nav>
   );
 }

@@ -15,21 +15,22 @@ type SearchParams = {
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const where: Prisma.JobWhereInput = {};
   
-  if (searchParams.category) where.category = searchParams.category;
-  if (searchParams.district) where.district = searchParams.district;
-  if (searchParams.minBudget || searchParams.maxBudget) {
+  if (resolvedSearchParams.category) where.category = resolvedSearchParams.category;
+  if (resolvedSearchParams.district) where.district = resolvedSearchParams.district;
+  if (resolvedSearchParams.minBudget || resolvedSearchParams.maxBudget) {
     where.budget = {};
-    if (searchParams.minBudget) where.budget.gte = Number(searchParams.minBudget);
-    if (searchParams.maxBudget) where.budget.lte = Number(searchParams.maxBudget);
+    if (resolvedSearchParams.minBudget) where.budget.gte = Number(resolvedSearchParams.minBudget);
+    if (resolvedSearchParams.maxBudget) where.budget.lte = Number(resolvedSearchParams.maxBudget);
   }
-  if (searchParams.q) {
+  if (resolvedSearchParams.q) {
     where.OR = [
-      { title: { contains: searchParams.q, mode: "insensitive" } },
-      { description: { contains: searchParams.q, mode: "insensitive" } },
+      { title: { contains: resolvedSearchParams.q, mode: "insensitive" } },
+      { description: { contains: resolvedSearchParams.q, mode: "insensitive" } },
     ];
   }
 
@@ -61,14 +62,14 @@ export default async function JobsPage({
               <input
                 name="q"
                 placeholder="Search jobs..."
-                defaultValue={searchParams.q ?? ""}
+                defaultValue={resolvedSearchParams.q ?? ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-              <select name="category" defaultValue={searchParams.category ?? ""} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+              <select name="category" defaultValue={resolvedSearchParams.category ?? ""} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
                 <option value="">All Categories</option>
                 <option value="NANNY">Nanny</option>
                 <option value="COOK">Cook</option>
@@ -82,7 +83,7 @@ export default async function JobsPage({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">District</label>
-              <select name="district" defaultValue={searchParams.district ?? ""} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+              <select name="district" defaultValue={resolvedSearchParams.district ?? ""} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
                 <option value="">All Districts</option>
                 <option value="GASABO">Gasabo</option>
                 <option value="KICUKIRO">Kicukiro</option>
@@ -96,7 +97,7 @@ export default async function JobsPage({
                 type="number"
                 name="minBudget"
                 placeholder="Min FRW"
-                defaultValue={searchParams.minBudget ?? ""}
+                defaultValue={resolvedSearchParams.minBudget ?? ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
@@ -107,7 +108,7 @@ export default async function JobsPage({
                 type="number"
                 name="maxBudget"
                 placeholder="Max FRW"
-                defaultValue={searchParams.maxBudget ?? ""}
+                defaultValue={resolvedSearchParams.maxBudget ?? ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>

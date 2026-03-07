@@ -62,7 +62,13 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json(applications);
+    // Add isClosed flag for new applications
+    const applicationsWithStatus = applications.map(app => ({
+      ...app,
+      isClosed: app.status === "PENDING" && app.job.status === "CLOSED"
+    }));
+
+    return NextResponse.json(applicationsWithStatus);
 
   } catch (error) {
     console.error("Applications error:", error);
