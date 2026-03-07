@@ -5,9 +5,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
     
     if (!session || (session.user?.role !== "ADMIN" && session.user?.role !== "SUPERADMIN")) {
@@ -15,7 +16,6 @@ export async function PATCH(
     }
 
     const { status, expiresAt, notes } = await request.json();
-    const { id } = params;
 
     const verification = await prisma.verification.update({
       where: { id },
@@ -51,16 +51,15 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
     
     if (!session || (session.user?.role !== "ADMIN" && session.user?.role !== "SUPERADMIN")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const { id } = params;
 
     await prisma.verification.delete({
       where: { id }

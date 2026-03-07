@@ -7,9 +7,10 @@ import { requireAdmin } from "@/lib/admin-middleware";
 // POST suspend/unsuspend user
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await requireAdmin();
     
     const body = await request.json();
@@ -25,7 +26,7 @@ export async function POST(
 
     // Check if user exists
     const user = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!user) {
@@ -42,7 +43,7 @@ export async function POST(
 
     // Update user suspension status
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         suspended: suspended,
         suspensionReason: suspended ? reason : null,

@@ -7,13 +7,14 @@ import { requireAdmin } from "@/lib/admin-middleware";
 // GET user by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await requireAdmin();
     
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         employerProfile: true,
         workerProfile: true,
@@ -56,9 +57,10 @@ export async function GET(
 // PUT update user
 export async function PUT(
   request: NextRequest,
-  params: { id: string }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await requireAdmin();
     
     const body = await request.json();
@@ -79,7 +81,7 @@ export async function PUT(
     if (role) updateData.role = role;
 
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         employerProfile: true,
@@ -109,9 +111,10 @@ export async function PUT(
 // DELETE user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await requireAdmin();
     
     // Only SUPERADMIN can delete users
@@ -124,7 +127,7 @@ export async function DELETE(
 
     // Check if user exists
     const user = await prisma.user.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!user) {
@@ -141,7 +144,7 @@ export async function DELETE(
 
     // Delete user (this will cascade delete related records)
     await prisma.user.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
     return NextResponse.json({ message: "User deleted successfully" });
