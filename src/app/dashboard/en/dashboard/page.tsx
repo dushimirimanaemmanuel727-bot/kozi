@@ -4,100 +4,17 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
 // Force dynamic rendering for this page
 export const dynamic = 'force-dynamic';
 
-// API functions
-export async function getDashboardStats() {
-  const session = await getServerSession(authOptions);
-  
-  if (!session || session.user.role !== "EMPLOYER") {
-    throw new Error("Unauthorized");
+// API function
+async function getDashboardStats() {
+  const response = await fetch('/api/dashboard/stats');
+  if (!response.ok) {
+    throw new Error('Failed to fetch dashboard stats');
   }
-
-  // Get employer user ID
-  const employer = await prisma.user.findUnique({
-    where: { phone: session.user.phone },
-    select: { id: true }
-  });
-
-  if (!employer) {
-    throw new Error("Employer not found");
-  }
-
-  // Get active jobs count
-  const activeJobs = await prisma.job.count({
-    where: {
-      employerId: employer.id,
-      status: "OPEN"
-    }
-  });
-
-  // Get pending applications count
-  const pendingApplications = await prisma.application.count({
-    where: {
-      job: {
-        employerId: employer.id
-      },
-      status: "PENDING"
-    }
-  });
-
-  // Get workers hired count (applications with ACCEPTED status)
-  const workersHired = await prisma.application.count({
-    where: {
-      job: {
-        employerId: employer.id
-      },
-      status: "ACCEPTED"
-    }
-  });
-
-  // Get recent applications
-  const recentApplications = await prisma.application.findMany({
-    where: {
-      job: {
-        employerId: employer.id
-      }
-    },
-    include: {
-      job: {
-        select: { title: true, id: true }
-      },
-      worker: {
-        select: { name: true },
-        include: {
-          workerProfile: {
-            select: { photoUrl: true }
-          }
-        }
-      }
-    },
-    orderBy: { createdAt: "desc" },
-    take: 5
-  });
-
-  // Get recent jobs
-  const recentJobs = await prisma.job.findMany({
-    where: {
-      employerId: employer.id
-    },
-    orderBy: { createdAt: "desc" },
-    take: 5
-  });
-
-  return {
-    activeJobs,
-    pendingApplications,
-    workersHired,
-    recentApplications,
-    recentJobs
-  };
+  return response.json();
 }
 
 export default function EmployerDashboard() {
