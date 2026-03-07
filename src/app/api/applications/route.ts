@@ -149,6 +149,29 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // Create notification for the employer
+    try {
+      // Get worker details for notification
+      const workerDetails = await prisma.user.findUnique({
+        where: { id: worker.id },
+        select: { name: true }
+      });
+
+      if (workerDetails) {
+        await prisma.notification.create({
+          data: {
+            userId: job.employerId,
+            title: "New Job Application! 📋",
+            message: `${workerDetails.name} has applied for your position: ${application.job?.title || "Job"}`,
+            type: "APPLICATION"
+          }
+        });
+      }
+    } catch (notificationError) {
+      console.error("Failed to send application notification:", notificationError);
+      // Don't fail the application if notification fails
+    }
+
     return NextResponse.json({ 
       message: "Application submitted successfully",
       application 

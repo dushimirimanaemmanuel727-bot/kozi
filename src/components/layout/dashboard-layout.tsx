@@ -80,6 +80,7 @@ export default function DashboardLayout({ children, userProfile }: DashboardLayo
                 </svg>
               </button>
               <div className="flex items-center space-x-4">
+                <NotificationBell />
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{session?.user?.name}</p>
                   <p className="text-xs text-gray-500 capitalize">{session?.user?.role}</p>

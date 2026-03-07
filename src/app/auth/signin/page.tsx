@@ -111,17 +111,6 @@ export default function SignIn() {
               Back to home
             </Link>
           </div>
-
-          {/* Test Accounts Info */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-sm text-blue-800 font-medium mb-2">Test Accounts:</p>
-            <div className="text-xs text-blue-700 space-y-1">
-              <p><strong>Employer:</strong> +250780000001 / password123</p>
-              <p><strong>Worker 1:</strong> +250780000101 / password123</p>
-              <p><strong>Worker 2:</strong> +250780000102 / password123</p>
-              <p><strong>Worker 3:</strong> +250780000103 / password123</p>
-            </div>
-          </div>
         </form>
       </div>
     </div>

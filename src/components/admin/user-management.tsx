@@ -22,6 +22,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Users,
   Search,
   Filter,
@@ -38,7 +58,8 @@ import {
   MoreHorizontal,
   UserX,
   UserCheck,
-  Building
+  Building,
+  Loader2
 } from "lucide-react";
 
 interface UserManagementProps {
@@ -51,6 +72,13 @@ export function UserManagement({ session, users, stats }: UserManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [viewingUser, setViewingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [suspendingUserId, setSuspendingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [suspendReason, setSuspendReason] = useState("");
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", role: "" });
 
   // Filter users based on search and filters
   const filteredUsers = users.filter(user => {
@@ -82,6 +110,121 @@ export function UserManagement({ session, users, stats }: UserManagementProps) {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Action handlers
+  const handleViewUser = async (userId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/admin/users/${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setViewingUser(data.user);
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    setEditForm({
+      name: user.name,
+      email: user.email || "",
+      phone: user.phone,
+      role: user.role
+    });
+  };
+
+  const handleSaveUser = async () => {
+    if (!editingUser) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm)
+      });
+      
+      if (response.ok) {
+        setEditingUser(null);
+        window.location.reload(); // Simple refresh for now
+      }
+    } catch (error) {
+      console.error("Error updating user:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSuspendUser = async (userId: string, suspended: boolean) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/admin/users/${userId}/suspend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          suspended, 
+          reason: suspended ? suspendReason : null 
+        })
+      });
+      
+      if (response.ok) {
+        setSuspendingUserId(null);
+        setSuspendReason("");
+        window.location.reload(); // Simple refresh for now
+      }
+    } catch (error) {
+      console.error("Error suspending user:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE"
+      });
+      
+      if (response.ok) {
+        setDeletingUserId(null);
+        window.location.reload(); // Simple refresh for now
+      }
+    } catch (error) {
+      console.error("Error deleting user:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/users?export=true');
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        console.error("Export failed");
+      }
+    } catch (error) {
+      console.error("Error exporting users:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -91,7 +234,7 @@ export function UserManagement({ session, users, stats }: UserManagementProps) {
           <p className="text-gray-600 mt-1">Manage and monitor all registered users</p>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportUsers}>
             <Download className="w-4 h-4 mr-2" />
             Export Users
           </Button>
@@ -290,8 +433,11 @@ export function UserManagement({ session, users, stats }: UserManagementProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-green-50 text-green-800">
-                      Active
+                    <Badge 
+                      variant={user.suspended ? "destructive" : "outline"} 
+                      className={user.suspended ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800"}
+                    >
+                      {user.suspended ? "Suspended" : "Active"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -303,23 +449,40 @@ export function UserManagement({ session, users, stats }: UserManagementProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewUser(user.id)}>
                           <Eye className="w-4 h-4 mr-2" />
                           View Profile
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditUser(user)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Edit User
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
-                          <Ban className="w-4 h-4 mr-2" />
-                          Suspend User
+                        <DropdownMenuItem 
+                          onClick={() => setSuspendingUserId(user.id)}
+                          className={user.suspended ? "text-green-600" : "text-orange-600"}
+                        >
+                          {user.suspended ? (
+                            <>
+                              <UserCheck className="w-4 h-4 mr-2" />
+                              Unsuspend User
+                            </>
+                          ) : (
+                            <>
+                              <Ban className="w-4 h-4 mr-2" />
+                              Suspend User
+                            </>
+                          )}
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <UserX className="w-4 h-4 mr-2" />
-                          Delete User
-                        </DropdownMenuItem>
+                        {session.user.role === "SUPERADMIN" && (
+                          <DropdownMenuItem 
+                            onClick={() => setDeletingUserId(user.id)}
+                            className="text-red-600"
+                          >
+                            <UserX className="w-4 h-4 mr-2" />
+                            Delete User
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -329,6 +492,202 @@ export function UserManagement({ session, users, stats }: UserManagementProps) {
           </Table>
         </CardContent>
       </Card>
+
+      {/* View User Dialog */}
+      <Dialog open={!!viewingUser} onOpenChange={() => setViewingUser(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Complete information about {viewingUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {viewingUser && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Name</Label>
+                  <p className="text-sm text-gray-600">{viewingUser.name}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Phone</Label>
+                  <p className="text-sm text-gray-600">{viewingUser.phone}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Email</Label>
+                  <p className="text-sm text-gray-600">{viewingUser.email || "Not provided"}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Role</Label>
+                  <Badge className={getRoleColor(viewingUser.role)}>
+                    {viewingUser.role}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Status</Label>
+                  <Badge 
+                    variant={viewingUser.suspended ? "destructive" : "outline"}
+                    className={viewingUser.suspended ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800"}
+                  >
+                    {viewingUser.suspended ? "Suspended" : "Active"}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Joined</Label>
+                  <p className="text-sm text-gray-600">{formatDate(viewingUser.createdAt)}</p>
+                </div>
+              </div>
+              
+              {viewingUser.suspended && (
+                <div>
+                  <Label className="text-sm font-medium">Suspension Reason</Label>
+                  <p className="text-sm text-red-600">{viewingUser.suspensionReason || "No reason provided"}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingUser(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user information for {editingUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {editingUser && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                />
+              </div>
+              {session.user.role === "SUPERADMIN" && (
+                <div>
+                  <Label htmlFor="role">Role</Label>
+                  <select
+                    id="role"
+                    value={editForm.role}
+                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="WORKER">Worker</option>
+                    <option value="EMPLOYER">Employer</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="SUPERADMIN">Super Admin</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingUser(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveUser} disabled={loading}>
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspend User Dialog */}
+      <Dialog open={!!suspendingUserId} onOpenChange={() => setSuspendingUserId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {users.find(u => u.id === suspendingUserId)?.suspended ? "Unsuspend User" : "Suspend User"}
+            </DialogTitle>
+            <DialogDescription>
+              {users.find(u => u.id === suspendingUserId)?.suspended 
+                ? "Are you sure you want to unsuspend this user? They will be able to access the platform again."
+                : "Are you sure you want to suspend this user? They will not be able to access the platform."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!users.find(u => u.id === suspendingUserId)?.suspended && (
+            <div>
+              <Label htmlFor="reason">Reason for suspension</Label>
+              <Textarea
+                id="reason"
+                placeholder="Please provide a reason for suspending this user..."
+                value={suspendReason}
+                onChange={(e) => setSuspendReason(e.target.value)}
+              />
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSuspendingUserId(null)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                const user = users.find(u => u.id === suspendingUserId);
+                handleSuspendUser(suspendingUserId!, !user?.suspended);
+              }}
+              disabled={loading || (!users.find(u => u.id === suspendingUserId)?.suspended && !suspendReason.trim())}
+              variant={users.find(u => u.id === suspendingUserId)?.suspended ? "default" : "destructive"}
+            >
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {users.find(u => u.id === suspendingUserId)?.suspended ? "Unsuspend" : "Suspend"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Dialog */}
+      <AlertDialog open={!!deletingUserId} onOpenChange={() => setDeletingUserId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone and will permanently remove all their data from the platform.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => handleDeleteUser(deletingUserId!)}
+              disabled={loading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

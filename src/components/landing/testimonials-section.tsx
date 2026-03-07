@@ -39,7 +39,7 @@ export default function TestimonialsSection() {
 
   const testimonials = [
     {
-      name: "Grace Uwimana",
+      name: "Marie Mukamana",
       role: "Domestic Worker",
       location: "Kigali, Rwanda",
       content: "KaziHome helped me find my dream job as a domestic worker. The platform is easy to use and I found a great family to work with within just 2 weeks!",
@@ -48,7 +48,7 @@ export default function TestimonialsSection() {
     },
     {
       name: "Jean-Pierre Niyonzima",
-      role: "Employer",
+      role: "Domestic Worker", 
       location: "Kigali, Rwanda",
       content: "As a busy professional, I needed reliable help at home. KaziHome connected me with amazing workers who are skilled and trustworthy. Highly recommended!",
       rating: 5,

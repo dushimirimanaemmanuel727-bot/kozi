@@ -1,8 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+
+const calculateProfileCompletion = (profile: any) => {
+  const fields = [
+    { field: 'category', weight: 15 },
+    { field: 'skills', weight: 15 },
+    { field: 'experienceYears', weight: 10 },
+    { field: 'availability', weight: 10 },
+    { field: 'minMonthlyPay', weight: 10 },
+    { field: 'bio', weight: 10 },
+    { field: 'nationalId', weight: 15 },
+    { field: 'passportNumber', weight: 10 },
+    { field: 'photoFile', weight: 10 },
+    { field: 'passportFile', weight: 5 }
+  ];
+
+  let completedWeight = 0;
+  let totalWeight = 0;
+
+  fields.forEach(({ field, weight }) => {
+    totalWeight += weight;
+    if (profile[field] && profile[field] !== '' && profile[field] !== null && profile[field] !== undefined) {
+      completedWeight += weight;
+    }
+  });
+
+  return Math.round((completedWeight / totalWeight) * 100);
+};
 
 export default function CompleteWorkerProfile() {
   const { data: session } = useSession();
@@ -25,6 +52,7 @@ export default function CompleteWorkerProfile() {
   const [passportFile, setPassportFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const [passportPreview, setPassportPreview] = useState<string>("");
+  const [profileCompletion, setProfileCompletion] = useState<number>(0);
 
   if (!session) {
     router.push("/auth/signin");
@@ -46,6 +74,16 @@ export default function CompleteWorkerProfile() {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
+
+  // Update profile completion whenever form data or files change
+  useEffect(() => {
+    const completion = calculateProfileCompletion({
+      ...formData,
+      photoFile: photoFile,
+      passportFile: passportFile,
+    });
+    setProfileCompletion(completion);
+  }, [formData, photoFile, passportFile]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,6 +159,36 @@ export default function CompleteWorkerProfile() {
             <p className="text-gray-600">
               Welcome to Kazi Home! Please complete your profile to start finding jobs.
             </p>
+            
+            {/* Profile Completion Indicator */}
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-900">Profile Completion</span>
+                <span className={`text-sm font-bold ${
+                  profileCompletion === 100 ? 'text-green-600' : 
+                  profileCompletion >= 75 ? 'text-blue-600' : 
+                  profileCompletion >= 50 ? 'text-yellow-600' : 'text-red-600'
+                }`}>
+                  {profileCompletion}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    profileCompletion === 100 ? 'bg-green-500' : 
+                    profileCompletion >= 75 ? 'bg-blue-500' : 
+                    profileCompletion >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`} 
+                  style={{ width: `${profileCompletion}%` }}
+                ></div>
+              </div>
+              <p className="text-xs text-blue-700 mt-2">
+                {profileCompletion === 100 ? '🎉 Excellent! Your profile is complete.' :
+                 profileCompletion >= 75 ? 'Great! Almost there. Add a few more details.' :
+                 profileCompletion >= 50 ? 'Good progress. Keep adding your information.' :
+                 'Getting started. Please complete your profile details.'}
+              </p>
+            </div>
           </div>
 
           {error && (

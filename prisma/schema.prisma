@@ -16,6 +16,10 @@ model User {
   district          String?
   languages         String?
   passwordHash      String?
+  suspended         Boolean          @default(false)
+  suspensionReason  String?
+  suspendedAt       DateTime?
+  suspendedBy       String?
   createdAt         DateTime         @default(now())
   applications      Application[]    @relation("workerApplications")
   employerProfile   EmployerProfile?
@@ -52,7 +56,12 @@ model WorkerProfile {
   nationalId      String?
   passportNumber  String?
   passportUrl     String?
+  viewCount       Int     @default(0)
   user            User    @relation(fields: [userId], references: [id])
+  profileViews   ProfileView[]
+
+  @@index([rating])
+  @@index([reviewCount])
 }
 
 model Job {
@@ -137,4 +146,16 @@ model Favorite {
 
   @@id([employerId, workerId])
   @@index([workerId])
+}
+
+model ProfileView {
+  id          String   @id @default(cuid())
+  workerId    String
+  viewerIp    String?
+  viewerType  String?  // 'EMPLOYER', 'WORKER', 'PUBLIC'
+  viewedAt    DateTime @default(now())
+  worker      WorkerProfile @relation(fields: [workerId], references: [id])
+
+  @@index([workerId])
+  @@index([viewedAt])
 }

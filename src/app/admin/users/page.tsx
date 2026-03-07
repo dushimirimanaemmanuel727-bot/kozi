@@ -32,6 +32,15 @@ export default async function UsersPage() {
     }
   });
 
+  // Convert Decimal objects to plain numbers for serialization
+  const serializedUsers = users.map(user => ({
+    ...user,
+    workerProfile: user.workerProfile ? {
+      ...user.workerProfile,
+      minMonthlyPay: user.workerProfile.minMonthlyPay ? Number(user.workerProfile.minMonthlyPay) : null
+    } : null
+  }));
+
   // Get user statistics
   const userStats = await prisma.$queryRaw`
     SELECT 
@@ -44,11 +53,17 @@ export default async function UsersPage() {
     GROUP BY role
   ` as any[];
 
+  // Convert Decimal objects to plain numbers
+  const serializedStats = userStats.map(stat => ({
+    ...stat,
+    avg_experience: stat.avg_experience ? Number(stat.avg_experience) : null
+  }));
+
   return (
     <UserManagement 
       session={session}
-      users={users}
-      stats={userStats}
+      users={serializedUsers}
+      stats={serializedStats}
     />
   );
 }

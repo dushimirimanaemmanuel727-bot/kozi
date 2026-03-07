@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/router";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -68,7 +68,12 @@ export async function getDashboardStats() {
         select: { title: true, id: true }
       },
       worker: {
-        select: { name: true, photoUrl: true }
+        select: { name: true },
+        include: {
+          workerProfile: {
+            select: { photoUrl: true }
+          }
+        }
       }
     },
     orderBy: { createdAt: "desc" },
@@ -237,15 +242,15 @@ export default function EmployerDashboard() {
                 <h2 className="text-lg font-semibold text-gray-900">Recent Applications</h2>
               </div>
               <div className="p-6">
-                {data?.recentApplications?.length > 0 ? (
+                {data?.recentApplications && data.recentApplications.length > 0 ? (
                   <div className="space-y-4">
                     {data.recentApplications.map((application: any) => (
                       <div key={application.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                            {application.worker.photoUrl ? (
+                            {application.worker.workerProfile?.photoUrl ? (
                               <img 
-                                src={application.worker.photoUrl} 
+                                src={application.worker.workerProfile.photoUrl} 
                                 alt={application.worker.name} 
                                 className="w-full h-full object-cover"
                               />
@@ -261,7 +266,11 @@ export default function EmployerDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-500 capitalize">
+                          <span className={`text-sm font-medium capitalize ${
+                            application.status === 'ACCEPTED' ? 'text-green-600' : 
+                            application.status === 'REJECTED' ? 'text-red-600' : 
+                            application.status === 'PENDING' ? 'text-orange-600' : 'text-gray-600'
+                          }`}>
                             {application.status}
                           </span>
                           <button 
@@ -291,7 +300,7 @@ export default function EmployerDashboard() {
                 <h2 className="text-lg font-semibold text-gray-900">Recent Jobs</h2>
               </div>
               <div className="p-6">
-                {data?.recentJobs?.length > 0 ? (
+                {data?.recentJobs && data.recentJobs.length > 0 ? (
                   <div className="space-y-4">
                     {data.recentJobs.map((job: any) => (
                       <div key={job.id} className="p-4 bg-gray-50 rounded-lg">

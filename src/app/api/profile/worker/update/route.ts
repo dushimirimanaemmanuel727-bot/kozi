@@ -27,9 +27,12 @@ export async function PUT(request: NextRequest) {
     const minMonthlyPay = formData.get("minMonthlyPay") ? parseInt(formData.get("minMonthlyPay") as string) : null;
     const liveIn = formData.get("liveIn") === "true";
     const bio = formData.get("bio") as string;
+    const nationalId = formData.get("nationalId") as string;
+    const passportNumber = formData.get("passportNumber") as string;
 
-    // Get photo file if provided
+    // Get files if provided
     const photoFile = formData.get("photo") as File;
+    const passportFile = formData.get("passport") as File;
 
     // Create uploads directory if it doesn't exist
     const uploadsDir = path.join(process.cwd(), "public", "uploads");
@@ -50,6 +53,17 @@ export async function PUT(request: NextRequest) {
       photoUrl = `/uploads/${photoFileName}`;
     }
 
+    // Save passport if provided
+    let passportUrl = null;
+    if (passportFile && passportFile.size > 0) {
+      const passportBytes = await passportFile.arrayBuffer();
+      const passportBuffer = Buffer.from(passportBytes);
+      const passportFileName = `${session.user.id}-passport-${Date.now()}.${passportFile.type.split('/')[1] || 'pdf'}`;
+      const passportPath = path.join(uploadsDir, passportFileName);
+      await writeFile(passportPath, passportBuffer);
+      passportUrl = `/uploads/${passportFileName}`;
+    }
+
     // Update worker profile
     const updatedProfile = await prisma.workerProfile.update({
       where: { userId: session.user.id },
@@ -61,7 +75,10 @@ export async function PUT(request: NextRequest) {
         minMonthlyPay,
         liveIn,
         bio: bio || null,
+        nationalId: nationalId || null,
+        passportNumber: passportNumber || null,
         ...(photoUrl && { photoUrl }),
+        ...(passportUrl && { passportUrl }),
       },
     });
 

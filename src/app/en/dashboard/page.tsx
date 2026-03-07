@@ -88,6 +88,7 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState<AnalyticsData | WorkerAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
   // Redirect admin users to admin dashboard
   useEffect(() => {
@@ -141,6 +142,19 @@ export default function Dashboard() {
         const analyticsData = await analyticsResponse.json();
         console.log("Analytics data:", analyticsData);
         setAnalytics(analyticsData);
+        
+        // Fetch available workers for employers
+        if (session.user.role === "EMPLOYER") {
+          try {
+            const workersResponse = await fetch("/api/workers");
+            if (workersResponse.ok) {
+              const workersData = await workersResponse.json();
+              setAvailableWorkers(workersData.workers || []);
+            }
+          } catch (err) {
+            console.error("Failed to fetch workers:", err);
+          }
+        }
         
       } catch (err: any) {
         setError(err.message);
@@ -208,61 +222,24 @@ export default function Dashboard() {
   };
 
   const getAvailableWorkers = () => {
-    // Sample worker data - in a real app, this would come from an API
-    return [
-      {
-        id: "1",
-        name: "John Doe",
-        skills: ["Plumbing", "Construction", "Electrical"],
-        experience: "5 years",
-        location: "Kigali",
-        expectedSalary: 500,
-        availability: "IMMEDIATE",
-        profileCompletion: 90,
-        photoUrl: undefined,
-        rating: 4.5,
-        jobApplications: 12
-      },
-      {
-        id: "2", 
-        name: "Jane Smith",
-        skills: ["Cleaning", "Cooking", "Childcare"],
-        experience: "3 years",
-        location: "Nyarugenge",
-        expectedSalary: 350,
-        availability: "WEEK",
-        profileCompletion: 85,
-        photoUrl: undefined,
-        rating: 4.8,
-        jobApplications: 8
-      },
-      {
-        id: "3",
-        name: "Robert Mugisha",
-        skills: ["Driving", "Logistics", "Delivery"],
-        experience: "7 years", 
-        location: "Kicukiro",
-        expectedSalary: 450,
-        availability: "IMMEDIATE",
-        profileCompletion: 95,
-        photoUrl: undefined,
-        rating: 4.2,
-        jobApplications: 15
-      },
-      {
-        id: "4",
-        name: "Grace Uwimana",
-        skills: ["Gardening", "Landscaping", "Farming"],
-        experience: "4 years",
-        location: "Gasabo",
-        expectedSalary: 300,
-        availability: "TWO_WEEKS",
-        profileCompletion: 80,
-        photoUrl: undefined,
-        rating: 4.6,
-        jobApplications: 6
-      }
-    ];
+    // Transform API data to match component interface
+    console.log("Available workers data:", availableWorkers);
+    return availableWorkers.slice(0, 4).map((worker: any) => {
+      console.log("Processing worker:", worker.id, worker.name);
+      return {
+        id: worker.id,
+        name: worker.name,
+        skills: worker.skills ? worker.skills.split(',').slice(0, 3) : [],
+        experience: `${worker.experienceYears}+ years`,
+        location: worker.district || 'Kigali',
+        expectedSalary: worker.minMonthlyPay,
+        availability: worker.availability.replace('_', ' '),
+        profileCompletion: 85, // Default value
+        photoUrl: worker.photoUrl,
+        rating: worker.rating,
+        jobApplications: 0 // Default value
+      };
+    });
   };
 
   
