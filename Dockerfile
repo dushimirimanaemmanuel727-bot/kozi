@@ -19,6 +19,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Generate Prisma client
+ENV PRISMA_FORCE_NAPI=true
+ENV PRISMA_CLI_BINARY_TARGETS="linux-musl"
+ENV OPENSSL_DIR="/usr/lib"
+ENV OPENSSL_LIB_DIR="/usr/lib"
+ENV OPENSSL_INCLUDE_DIR="/usr/include"
 RUN npx prisma generate
 
 # Build the application
