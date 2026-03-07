@@ -29,16 +29,23 @@ export default function RecentJobsSection() {
       console.log("Fetching recent jobs...");
       const response = await fetch("/api/jobs/recent?limit=6");
       console.log("Response status:", response.status);
+      
       if (response.ok) {
         const data = await response.json();
         console.log("Received data:", data);
         setJobs(data.jobs || []);
         console.log("Jobs set:", data.jobs || []);
+      } else if (response.status === 500) {
+        const errorData = await response.json();
+        console.error("Server error:", errorData);
+        setJobs([]); // Set empty array to show "no jobs" message
       } else {
         console.error("API response not ok:", response.status);
+        setJobs([]);
       }
     } catch (error) {
       console.error("Failed to fetch recent jobs:", error);
+      setJobs([]);
     } finally {
       setLoading(false);
     }
@@ -117,13 +124,21 @@ export default function RecentJobsSection() {
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No jobs available yet</h3>
-            <p className="text-gray-600 mb-6">Check back soon for new job opportunities</p>
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-            >
-              Sign up to get notified
-            </Link>
+            <p className="text-gray-600 mb-6">Employers haven't posted any jobs yet. Check back soon or sign up to get notified when new jobs are posted!</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              >
+                Sign Up as Worker
+              </Link>
+              <Link
+                href="/auth/signup"
+                className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                Post a Job
+              </Link>
+            </div>
           </div>
         </div>
       </section>

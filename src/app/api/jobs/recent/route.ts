@@ -52,64 +52,12 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("Failed to fetch recent jobs:", error);
     
-    // Fallback to mock data if database fails
-    const fallbackLimit = parseInt(new URL(req.url).searchParams.get("limit") || "6");
-    const mockJobs = [
-      {
-        id: "1",
-        title: "Live-in nanny for 2-year-old",
-        category: "Childcare",
-        description: "Looking for an experienced nanny to care for our 2-year-old child. Live-in position with private room provided.",
-        budget: 180000,
-        district: "Kigali",
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        deadline: null,
-        employerName: "Acme Family",
-        organizationName: "Acme Family"
+    return NextResponse.json(
+      { 
+        error: "Failed to fetch jobs",
+        message: error.message || "Database error occurred"
       },
-      {
-        id: "2", 
-        title: "Housekeeper for Family Home",
-        category: "Housekeeping",
-        description: "Need a reliable housekeeper for daily cleaning and maintenance of a 4-bedroom family home.",
-        budget: 120000,
-        district: "Nyarugenge",
-        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-        deadline: null,
-        employerName: "Johnson Family",
-        organizationName: "Johnson Family"
-      },
-      {
-        id: "3",
-        title: "Cook for Family of 4",
-        category: "Cooking", 
-        description: "Seeking a skilled cook to prepare daily meals for a family of 4. Experience with Rwandan cuisine required.",
-        budget: 150000,
-        district: "Kicukiro",
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        deadline: null,
-        employerName: "Mukamana Family",
-        organizationName: "Mukamana Family"
-      },
-      {
-        id: "4",
-        title: "Elderly Care Assistant",
-        category: "Elderly Care",
-        description: "Looking for a compassionate caregiver to assist with elderly care including medication reminders and companionship.",
-        budget: 160000,
-        district: "Gasabo",
-        createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-        deadline: null,
-        employerName: "Care Home Services",
-        organizationName: "Care Home Services"
-      }
-    ];
-
-    const limitedJobs = mockJobs.slice(0, fallbackLimit);
-
-    return NextResponse.json({
-      jobs: limitedJobs,
-      total: limitedJobs.length
-    });
+      { status: 500 }
+    );
   }
 }
