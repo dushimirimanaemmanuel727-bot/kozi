@@ -128,9 +128,12 @@ export default function NavigationBar() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`md:hidden p-2 rounded-lg transition-colors ${
-              isScrolled ? "text-gray-700 hover:bg-gray-100" : "text-white hover:bg-white/10"
+            className={`md:hidden p-3 rounded-lg transition-colors ${
+              isScrolled 
+                ? "text-gray-700 hover:bg-gray-100 border border-gray-300" 
+                : "text-white hover:bg-white/20 border border-white/50"
             }`}
+            aria-label="Toggle mobile menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {isMobileMenuOpen ? (
