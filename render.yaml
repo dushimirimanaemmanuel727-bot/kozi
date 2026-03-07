@@ -1,0 +1,29 @@
+services:
+  # Web Service
+  - type: web
+    name: kazi-home
+    env: node
+    plan: free
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kazi-home-db
+          property: connectionString
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: PRISMA_GENERATE_DATAPROXY
+        value: false
+
+  # PostgreSQL Database
+  - type: pserv
+    name: kazi-home-db
+    env: postgres
+    plan: free
+    databaseName: kazi_home
