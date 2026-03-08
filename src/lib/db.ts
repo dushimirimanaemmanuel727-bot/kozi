@@ -1,5 +1,44 @@
-import { prisma } from './prisma';
+import { Pool, PoolClient } from 'pg';
 
+// Database connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Connection helper
+export async function getConnection(): Promise<PoolClient> {
+  return pool.connect();
+}
+
+// Query helper
+export async function query(text: string, params?: any[]): Promise<any> {
+  const client = await getConnection();
+  try {
+    const result = await client.query(text, params);
+    return result;
+  } finally {
+    client.release();
+  }
+}
+
+// Transaction helper
+export async function transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await getConnection();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// Database initialization
 export async function initializeDatabase() {
   const startTime = Date.now();
   
@@ -7,34 +46,32 @@ export async function initializeDatabase() {
     console.log('🚀 Starting database initialization...');
     
     // Test basic connection
-    await prisma.$connect();
+    const client = await getConnection();
     const connectionTime = Date.now() - startTime;
     console.log(`🗄️  Database connection established in ${connectionTime}ms`);
     
-    // Test a simple query to ensure the database is responsive
+    // Test a simple query
     const queryStart = Date.now();
-    const result = await prisma.$queryRaw`SELECT 1 as test`;
+    await client.query('SELECT 1 as test');
     const queryTime = Date.now() - queryStart;
     console.log(`✅ Database query test passed in ${queryTime}ms`);
     
-    // Check if database has been migrated by testing table existence
-    console.log('🔍 Checking database migration status...');
-    
+    // Check if users table exists
     try {
-      // Try to count users to see if User table exists
       const userCountStart = Date.now();
-      const userCount = await prisma.user.count();
+      const userResult = await client.query('SELECT COUNT(*) as count FROM "User"');
+      const userCount = parseInt(userResult.rows[0].count);
       const userCountTime = Date.now() - userCountStart;
       
-      console.log(`📊 Database ready - Found ${userCount} users in the system (${userCountTime}ms)`);
+      console.log(`📊 Database ready - Found ${userCount} users in system (${userCountTime}ms)`);
       
-      // Additional verification: Test table accessibility
+      // Test table accessibility
       const tables = ['Job', 'Application', 'Review', 'Notification'];
       console.log('🔍 Verifying table accessibility...');
       
       for (const tableName of tables) {
         try {
-          await prisma.$queryRaw`SELECT 1 FROM ${tableName} LIMIT 1`;
+          await client.query(`SELECT 1 FROM "${tableName}" LIMIT 1`);
           console.log(`✅ ${tableName} table accessible`);
         } catch (error) {
           console.warn(`⚠️  ${tableName} table check failed:`, error);
@@ -44,20 +81,13 @@ export async function initializeDatabase() {
       const totalTime = Date.now() - startTime;
       console.log(`🎉 Database initialization completed successfully in ${totalTime}ms`);
       
+      client.release();
       return true;
     } catch (tableError) {
-      // If User table doesn't exist, database needs migration
-      if (tableError instanceof Error && tableError.message.includes('does not exist')) {
-        console.warn('⚠️  Database tables not found - Migration required');
-        console.log('💡 Please run: npx prisma migrate deploy');
-        console.log('🔧 Or for development: npx prisma db push');
-        
-        const totalTime = Date.now() - startTime;
-        console.log(`⏸️  Database initialization paused in ${totalTime}ms - Migration needed`);
-        
-        return false;
-      }
-      throw tableError;
+      client.release();
+      console.warn('⚠️  Database tables not found - Migration required');
+      console.log('💡 Please run database migrations manually');
+      return false;
     }
     
   } catch (error) {
@@ -73,8 +103,8 @@ export async function initializeDatabase() {
   }
 }
 
-// Initialize database in all environments with enhanced logging
-console.log('📍 Database initialization module loaded');
+// Initialize database in all environments
+console.log('📍 Database module loaded');
 
 if (process.env.NODE_ENV === 'production') {
   console.log('🏭 Production environment detected - Running database initialization...');
@@ -84,3 +114,5 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   console.log('🛠️  Development environment detected - Skipping automatic initialization');
 }
+
+export default pool;

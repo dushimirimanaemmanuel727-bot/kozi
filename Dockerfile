@@ -18,15 +18,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client
-ENV PRISMA_FORCE_NAPI=true
-ENV PRISMA_CLI_BINARY_TARGETS="linux-musl"
-ENV OPENSSL_DIR="/usr/lib"
-ENV OPENSSL_LIB_DIR="/usr/lib"
-ENV OPENSSL_INCLUDE_DIR="/usr/include"
-ENV PKG_CONFIG_PATH="/usr/lib/pkgconfig"
-RUN npx prisma@5.17.0 generate
-
 # Build the application
 RUN npm run build
 
@@ -49,10 +40,7 @@ COPY --from=builder /app/public ./public/
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
-# Copy Prisma files and migration files
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy package.json
 COPY --from=builder /app/package.json ./package.json
 
 # Automatically leverage output traces to reduce image size

@@ -1,7 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { prisma } from "./prisma";
+import { verifyPassword } from "./user-service";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -20,34 +19,12 @@ export const authOptions: NextAuthOptions = {
 
           console.log('Auth: Looking for user with phone:', credentials.phone);
 
-          const user = await prisma.user.findUnique({
-            where: {
-              phone: credentials.phone
-            }
-          });
+          const user = await verifyPassword(credentials.phone, credentials.password);
 
           console.log('Auth: User found:', !!user);
           
           if (!user) {
-            console.log('Auth: User not found');
-            return null;
-          }
-
-          if (!user.passwordHash) {
-            console.log('Auth: No password hash for user');
-            return null;
-          }
-
-          console.log('Auth: Comparing password...');
-          const isPasswordValid = await bcrypt.compare(
-            credentials.password,
-            user.passwordHash
-          );
-
-          console.log('Auth: Password valid:', isPasswordValid);
-
-          if (!isPasswordValid) {
-            console.log('Auth: Invalid password');
+            console.log('Auth: User not found or invalid password');
             return null;
           }
 
