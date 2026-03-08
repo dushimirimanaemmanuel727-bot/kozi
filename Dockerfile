@@ -62,7 +62,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy startup script
 COPY --from=builder /app/scripts/start.sh ./scripts/start.sh
-RUN chmod +x scripts/start.sh
+RUN chmod +x scripts/start.sh && chown nextjs:nodejs scripts/start.sh
 
 USER nextjs
 
@@ -72,4 +72,4 @@ ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
 # Use startup script
-CMD ["./scripts/start.sh"]
+CMD ["/bin/sh", "/app/scripts/start.sh"]
