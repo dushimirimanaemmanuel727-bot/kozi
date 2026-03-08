@@ -4,7 +4,7 @@ FROM node:20-alpine AS base
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat openssl-dev
+RUN apk add --no-cache libc6-compat openssl-dev openssl1.1-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -13,7 +13,7 @@ RUN npm ci --ignore-scripts
 
 # Rebuild the source code only when needed
 FROM base AS builder
-RUN apk add --no-cache libc6-compat openssl-dev
+RUN apk add --no-cache libc6-compat openssl-dev openssl1.1-compat
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -25,7 +25,7 @@ ENV OPENSSL_DIR="/usr/lib"
 ENV OPENSSL_LIB_DIR="/usr/lib"
 ENV OPENSSL_INCLUDE_DIR="/usr/include"
 ENV PKG_CONFIG_PATH="/usr/lib/pkgconfig"
-RUN npx prisma generate
+RUN npx prisma@5.17.0 generate
 
 # Build the application
 RUN npm run build
@@ -40,7 +40,7 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Install OpenSSL and additional dependencies for Prisma
-RUN apk add --no-cache openssl curl
+RUN apk add --no-cache openssl openssl1.1-compat curl
 
 # Copy public files from builder stage
 COPY --from=builder /app/public ./public/
@@ -60,6 +60,10 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy startup script
+COPY --from=builder /app/scripts/start.sh ./scripts/start.sh
+RUN chmod +x scripts/start.sh
+
 USER nextjs
 
 EXPOSE 3000
@@ -67,5 +71,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# Database migration and startup script
-CMD ["sh", "-c", "echo '🚀 Starting application with database migration check...' && echo '📍 Environment: $NODE_ENV' && (if [ ! -z '$DATABASE_WAIT_TIMEOUT' ]; then echo '⏳ Waiting for database to be ready...' && timeout $DATABASE_WAIT_TIMEOUT sh -c 'until nc -z $DATABASE_HOST $DATABASE_PORT; do sleep 1; done'; fi) && echo '🗄️ Running database migrations...' && npx prisma migrate deploy || echo '⚠️ Migration failed or already applied' && echo '🔧 Generating Prisma client...' && npx prisma generate && echo '🎉 Starting application...' && node server.js"]
+# Use startup script
+CMD ["./scripts/start.sh"]
