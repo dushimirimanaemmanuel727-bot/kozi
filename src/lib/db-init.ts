@@ -17,30 +17,49 @@ export async function initializeDatabase() {
     const queryTime = Date.now() - queryStart;
     console.log(`✅ Database query test passed in ${queryTime}ms`);
     
-    // Check if we can access the User table (basic table existence check)
-    const userCountStart = Date.now();
-    const userCount = await prisma.user.count();
-    const userCountTime = Date.now() - userCountStart;
+    // Check if database has been migrated by testing table existence
+    console.log('🔍 Checking database migration status...');
     
-    console.log(`📊 Database ready - Found ${userCount} users in the system (${userCountTime}ms)`);
-    
-    // Additional verification: Test table accessibility
-    const tables = ['Job', 'Application', 'Review', 'Notification'];
-    console.log('🔍 Verifying table accessibility...');
-    
-    for (const tableName of tables) {
-      try {
-        await prisma.$queryRaw`SELECT 1 FROM ${tableName} LIMIT 1`;
-        console.log(`✅ ${tableName} table accessible`);
-      } catch (error) {
-        console.warn(`⚠️  ${tableName} table check failed:`, error);
+    try {
+      // Try to count users to see if User table exists
+      const userCountStart = Date.now();
+      const userCount = await prisma.user.count();
+      const userCountTime = Date.now() - userCountStart;
+      
+      console.log(`📊 Database ready - Found ${userCount} users in the system (${userCountTime}ms)`);
+      
+      // Additional verification: Test table accessibility
+      const tables = ['Job', 'Application', 'Review', 'Notification'];
+      console.log('🔍 Verifying table accessibility...');
+      
+      for (const tableName of tables) {
+        try {
+          await prisma.$queryRaw`SELECT 1 FROM ${tableName} LIMIT 1`;
+          console.log(`✅ ${tableName} table accessible`);
+        } catch (error) {
+          console.warn(`⚠️  ${tableName} table check failed:`, error);
+        }
       }
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`🎉 Database initialization completed successfully in ${totalTime}ms`);
+      
+      return true;
+    } catch (tableError) {
+      // If User table doesn't exist, database needs migration
+      if (tableError instanceof Error && tableError.message.includes('does not exist')) {
+        console.warn('⚠️  Database tables not found - Migration required');
+        console.log('💡 Please run: npx prisma migrate deploy');
+        console.log('🔧 Or for development: npx prisma db push');
+        
+        const totalTime = Date.now() - startTime;
+        console.log(`⏸️  Database initialization paused in ${totalTime}ms - Migration needed`);
+        
+        return false;
+      }
+      throw tableError;
     }
     
-    const totalTime = Date.now() - startTime;
-    console.log(`🎉 Database initialization completed successfully in ${totalTime}ms`);
-    
-    return true;
   } catch (error) {
     const totalTime = Date.now() - startTime;
     console.error(`❌ Database initialization failed after ${totalTime}ms:`, error);

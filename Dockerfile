@@ -39,8 +39,8 @@ ENV NODE_ENV production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
+# Install OpenSSL and additional dependencies for Prisma
+RUN apk add --no-cache openssl curl
 
 # Copy public files from builder stage
 COPY --from=builder /app/public ./public/
@@ -49,14 +49,16 @@ COPY --from=builder /app/public ./public/
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
+# Copy Prisma files and migration files
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/package.json ./package.json
+
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy Prisma files and generate client
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 USER nextjs
 
@@ -65,5 +67,5 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-# Run the application
-CMD ["node", "server.js"]
+# Database migration and startup script
+CMD ["sh", "-c", "echo '🚀 Starting application with database migration check...' && echo '📍 Environment: $NODE_ENV' && (if [ ! -z '$DATABASE_WAIT_TIMEOUT' ]; then echo '⏳ Waiting for database to be ready...' && timeout $DATABASE_WAIT_TIMEOUT sh -c 'until nc -z $DATABASE_HOST $DATABASE_PORT; do sleep 1; done'; fi) && echo '🗄️ Running database migrations...' && npx prisma migrate deploy || echo '⚠️ Migration failed or already applied' && echo '🔧 Generating Prisma client...' && npx prisma generate && echo '🎉 Starting application...' && node server.js"]
