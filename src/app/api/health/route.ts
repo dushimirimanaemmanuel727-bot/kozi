@@ -5,6 +5,7 @@ export async function GET() {
   try {
     // Test database connection
     await prisma.$queryRaw`SELECT 1`;
+    console.log('✅ Health check: Database connection successful');
     
     const health = {
       status: 'ok',
@@ -16,7 +17,7 @@ export async function GET() {
 
     return NextResponse.json(health, { status: 200 });
   } catch (error) {
-    console.error('Health check failed:', error);
+    console.error('❌ Health check: Database connection failed:', error);
     return NextResponse.json(
       { 
         status: 'error', 
