@@ -1,15 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import NavigationBar from "@/components/landing/navigation-bar";
-import HeroSection from "@/components/landing/hero-section";
-import FeaturesSection from "@/components/landing/features-section";
-import RecentJobsSection from "@/components/landing/recent-jobs-section";
-import HowItWorks from "@/components/landing/how-it-works";
-import TestimonialsSection from "@/components/landing/testimonials-section";
-import FooterSection from "@/components/landing/footer-section";
+import ModernLandingPage from "@/components/landing/modern/modern-landing-page";
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -18,12 +12,11 @@ export default function HomePage() {
   useEffect(() => {
     if (session) {
       // Redirect to dashboard based on user role
-      if (session.user?.role === "SUPERADMIN" || session.user?.role === "ADMIN") {
+      const userRole = session.user?.role?.toUpperCase();
+      if (userRole === "SUPERADMIN" || userRole === "ADMIN") {
         router.push("/admin");
-      } else if (session.user?.role === "EMPLOYER") {
-        router.push("/dashboard");
-      } else if (session.user?.role === "WORKER") {
-        router.push("/dashboard");
+      } else {
+        router.push("/en/dashboard");
       }
     }
   }, [session, router]);
@@ -39,15 +32,5 @@ export default function HomePage() {
     );
   }
 
-  return (
-    <div className="min-h-screen">
-      <NavigationBar />
-      <HeroSection />
-      <RecentJobsSection />
-      <FeaturesSection />
-      <HowItWorks />
-      <TestimonialsSection />
-      <FooterSection />
-    </div>
-  );
+  return <ModernLandingPage />;
 }

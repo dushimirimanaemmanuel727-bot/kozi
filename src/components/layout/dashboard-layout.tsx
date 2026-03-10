@@ -28,7 +28,8 @@ export default function DashboardLayout({ children, userProfile }: DashboardLayo
 
   const fetchUserProfile = async () => {
     try {
-      const endpoint = session?.user?.role === "WORKER" 
+      const userRole = session?.user?.role?.toLowerCase();
+      const endpoint = userRole === "worker" 
         ? "/api/profile/worker/current" 
         : "/api/profile/employer/current";
       
@@ -69,35 +70,40 @@ export default function DashboardLayout({ children, userProfile }: DashboardLayo
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Top header */}
-          <header className="bg-white shadow-sm border-b border-gray-200">
-            <div className="flex items-center justify-between px-6 py-4">
+          <header className="bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-gray-100">
+            <div className="flex items-center justify-between px-8 py-5">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-3 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 lg:hidden border border-gray-300"
+                className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 lg:hidden border border-gray-200 transition-colors"
                 aria-label="Toggle sidebar"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <div className="flex items-center space-x-4">
+              
+              <div className="flex items-center space-x-6 ml-auto">
                 <NotificationBell />
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{session?.user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{session?.user?.role}</p>
-                </div>
-                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                  {userProfileData?.photoUrl ? (
-                    <img 
-                      src={userProfileData.photoUrl} 
-                      alt={session?.user?.name || "Profile"} 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-sm font-medium text-gray-600">
-                      {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
-                    </span>
-                  )}
+                <div className="flex items-center space-x-4 pl-6 border-l border-gray-100">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-bold text-gray-900 leading-tight">{session?.user?.name}</p>
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mt-0.5">{session?.user?.role}</p>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl overflow-hidden ring-2 ring-gray-50 flex items-center justify-center shadow-sm">
+                    {userProfileData?.photoUrl ? (
+                      <img 
+                        src={userProfileData.photoUrl} 
+                        alt={session?.user?.name || "Profile"} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-blue-50 flex items-center justify-center">
+                        <span className="text-sm font-bold text-blue-600">
+                          {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

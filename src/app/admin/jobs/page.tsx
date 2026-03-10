@@ -1,49 +1,47 @@
 import { requireAdmin } from "@/lib/admin-middleware";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { JobManagement } from "@/components/admin/job-management";
 
 export default async function JobsPage() {
   const session = await requireAdmin();
 
   // Fetch jobs with employer and application data
-  const jobs = await prisma.job.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      employer: {
-        select: { name: true, phone: true, email: true }
-      },
-      applications: {
-        include: {
-          worker: {
-            select: { name: true, phone: true }
-          }
-        }
-      },
-      _count: {
-        select: { applications: true }
-      }
-    }
-  });
+  const jobs = await query(`
+    SELECT 
+      j.*,
+      e.name as employer_name,
+      e.phone as employer_phone,
+      e.email as employer_email,
+      COUNT(a.id) as application_count
+    FROM "Job" j
+    LEFT JOIN "User" e ON j."employerId" = e.id
+    LEFT JOIN "Application" a ON j.id = a."jobId"
+    GROUP BY j.id, e.name, e.phone, e.email
+    ORDER BY j."createdAt" DESC
+  `);
 
   // Get job statistics
-  const jobStats = await prisma.$queryRaw<any[]>`
+  const jobStats = await query(`
     SELECT 
       status,
       COUNT(*) as count,
-      AVG(budget) as avg_budget
+      COALESCE(AVG(budget), 0) as avg_budget
     FROM "Job" 
     GROUP BY status
-  `;
+  `);
 
   // Get category distribution
-  const categoryStats = await prisma.job.groupBy({
-    by: ['category'],
-    _count: { id: true },
-    orderBy: { _count: { id: 'desc' } }
-  });
+  const categoryStats = await query(`
+    SELECT 
+      category,
+      COUNT(*) as count
+    FROM "Job"
+    GROUP BY category
+    ORDER BY count DESC
+  `);
 
   // Get recent activity
-  const recentActivity = await prisma.$queryRaw<any[]>`
+  const recentActivity = await query(`
     SELECT 
       'JOB_POSTED' as type,
       j.title,
@@ -67,7 +65,7 @@ export default async function JobsPage() {
     
     ORDER BY "createdAt" DESC
     LIMIT 10
-  `;
+  `);
 
   return (
     <JobManagement 

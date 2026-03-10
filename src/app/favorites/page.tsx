@@ -1,10 +1,33 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import WorkerCard from "@/components/workers/worker-card";
 import Link from "next/link";
+import { query } from "@/lib/db";
+
+interface FavoriteRow {
+  employerId: string;
+  workerId: string;
+  favoriteCreatedAt: Date;
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  createdAt: Date;
+  updatedAt: Date;
+  userId?: string;
+  nationalId?: string;
+  passportNumber?: string;
+  passportUrl?: string;
+  category?: string;
+  experience?: string;
+  skills?: string;
+  availability?: string;
+  expectedSalary?: number;
+  bio?: string;
+}
 
 export default async function FavoritesPage() {
   const session = await getServerSession(authOptions);
@@ -18,21 +41,22 @@ export default async function FavoritesPage() {
     redirect("/workers");
   }
 
-  const favorites = await prisma.favorite.findMany({
-    where: {
-      employerId: session.user.id,
-    },
-    include: {
-      worker: {
-        include: {
-          workerProfile: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+  // Fetch favorites using raw SQL
+  const favoritesResult = await query(`
+    SELECT 
+      f."employerId",
+      f."workerId",
+      f."createdAt" as "favoriteCreatedAt",
+      w.*,
+      wp.*
+    FROM "Favorite" f
+    JOIN "User" w ON f."workerId" = w.id
+    LEFT JOIN "WorkerProfile" wp ON w.id = wp."userId"
+    WHERE f."employerId" = $1
+    ORDER BY f."createdAt" DESC
+  `, [session.user.id]);
+  
+  const favorites = favoritesResult.rows;
 
   return (
     <DashboardLayout>
@@ -75,9 +99,29 @@ export default async function FavoritesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {favorites.map((favorite) => {
-              const worker = favorite.worker;
-              const profile = worker.workerProfile;
+            {favorites.map((favorite: FavoriteRow) => {
+              // Create worker object from the flat row
+              const worker = {
+                id: favorite.id,
+                name: favorite.name,
+                email: favorite.email,
+                phone: favorite.phone,
+                role: favorite.role,
+                createdAt: favorite.createdAt,
+                updatedAt: favorite.updatedAt,
+              };
+              
+              // Create profile object from the flat row
+              const profile = favorite.userId ? {
+                photoUrl: null,
+                category: favorite.category,
+                rating: 0, // Default rating
+                reviewCount: 0, // Default review count
+                experienceYears: favorite.experience ? parseInt(favorite.experience) : null,
+                availability: favorite.availability,
+                minMonthlyPay: favorite.expectedSalary,
+                skills: favorite.skills,
+              } : null;
               
               if (!profile) return null;
 

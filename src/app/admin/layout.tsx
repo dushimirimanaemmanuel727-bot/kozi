@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/admin-middleware";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
-import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminHeaderWrapper } from "@/components/admin/admin-header-wrapper";
 
 export default async function AdminLayout({
   children,
@@ -11,7 +11,7 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminHeader session={session} />
+      <AdminHeaderWrapper session={session} />
       <div className="flex">
         <AdminSidebar />
         <main className="flex-1 p-6">

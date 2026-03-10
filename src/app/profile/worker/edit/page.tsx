@@ -7,16 +7,19 @@ import DashboardLayout from "@/components/layout/dashboard-layout";
 
 const calculateProfileCompletion = (profile: any) => {
   const fields = [
-    { field: 'category', weight: 15 },
+    { field: 'name', weight: 10 },
+    { field: 'age', weight: 5 },
+    { field: 'gender', weight: 5 },
+    { field: 'phone', weight: 10 },
+    { field: 'district', weight: 10 },
+    { field: 'category', weight: 10 },
     { field: 'skills', weight: 15 },
     { field: 'experienceYears', weight: 10 },
-    { field: 'availability', weight: 10 },
-    { field: 'minMonthlyPay', weight: 10 },
-    { field: 'bio', weight: 10 },
-    { field: 'nationalId', weight: 15 },
-    { field: 'passportNumber', weight: 10 },
-    { field: 'photoUrl', weight: 10 },
-    { field: 'passportUrl', weight: 5 }
+    { field: 'availability', weight: 5 },
+    { field: 'minMonthlyPay', weight: 5 },
+    { field: 'bio', weight: 5 },
+    { field: 'nationalId', weight: 10 },
+    { field: 'photoUrl', weight: 10 }
   ];
 
   let completedWeight = 0;
@@ -39,6 +42,11 @@ export default function EditWorkerProfile() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [formData, setFormData] = useState({
+    name: "",
+    age: "",
+    gender: "",
+    phone: "",
+    district: "",
     category: "GENERAL",
     skills: "",
     experienceYears: "0",
@@ -48,6 +56,9 @@ export default function EditWorkerProfile() {
     bio: "",
     nationalId: "",
     passportNumber: "",
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -58,8 +69,37 @@ export default function EditWorkerProfile() {
   const [currentPassport, setCurrentPassport] = useState<string>("");
   const [profileCompletion, setProfileCompletion] = useState<number>(0);
 
+  const calculateProfileCompletion = (profileData: any) => {
+    const fields = [
+      'name', 'age', 'gender', 'phone', 'district', 
+      'category', 'skills', 'experienceYears', 'availability', 
+      'minMonthlyPay', 'bio', 'nationalId', 'photoUrl'
+    ];
+    
+    let completedFields = 0;
+    fields.forEach(field => {
+      const value = profileData[field];
+      if (value !== null && value !== undefined && value !== '') {
+        if (typeof value === 'number' && value > 0) {
+          completedFields++;
+        } else if (typeof value === 'string' && value.trim() !== '') {
+          completedFields++;
+        } else if (typeof value === 'boolean' && value === true) {
+          completedFields++;
+        }
+      }
+    });
+    
+    return Math.round((completedFields / fields.length) * 100);
+  };
+
   useEffect(() => {
-    if (session?.user.role !== "WORKER") {
+    if (!session) {
+      router.push("/auth/signin");
+      return;
+    }
+
+    if (session?.user?.role?.toUpperCase() !== "WORKER") {
       router.push("/dashboard");
       return;
     }
@@ -71,6 +111,11 @@ export default function EditWorkerProfile() {
         if (response.ok) {
           const data = await response.json();
           setFormData({
+            name: data.name || "",
+            age: data.age?.toString() || "",
+            gender: data.gender || "",
+            phone: data.phone || "",
+            district: data.district || "",
             category: data.category || "GENERAL",
             skills: data.skills || "",
             experienceYears: data.experienceYears?.toString() || "0",
@@ -80,12 +125,20 @@ export default function EditWorkerProfile() {
             bio: data.bio || "",
             nationalId: data.nationalId || "",
             passportNumber: data.passportNumber || "",
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
           });
           setCurrentPhoto(data.photoUrl || "");
           setCurrentPassport(data.passportUrl || "");
           
           // Calculate profile completion
           const completion = calculateProfileCompletion({
+            name: data.name,
+            age: data.age,
+            gender: data.gender,
+            phone: data.phone,
+            district: data.district,
             category: data.category,
             skills: data.skills,
             experienceYears: data.experienceYears,
@@ -93,9 +146,7 @@ export default function EditWorkerProfile() {
             minMonthlyPay: data.minMonthlyPay,
             bio: data.bio,
             nationalId: data.nationalId,
-            passportNumber: data.passportNumber,
             photoUrl: data.photoUrl,
-            passportUrl: data.passportUrl,
           });
           setProfileCompletion(completion);
         }
@@ -123,10 +174,9 @@ export default function EditWorkerProfile() {
     const completion = calculateProfileCompletion({
       ...formData,
       photoUrl: photoPreview || currentPhoto,
-      passportUrl: passportPreview || currentPassport,
     });
     setProfileCompletion(completion);
-  }, [formData, photoPreview, currentPhoto, passportPreview, currentPassport]);
+  }, [formData, photoPreview, currentPhoto]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -158,13 +208,50 @@ export default function EditWorkerProfile() {
     setSuccess("");
     setLoading(true);
 
+    // Validate password fields if any are filled
+    if (formData.newPassword || formData.confirmPassword || formData.currentPassword) {
+      if (!formData.currentPassword) {
+        setError("Current password is required to change password");
+        setLoading(false);
+        return;
+      }
+      if (!formData.newPassword) {
+        setError("New password is required");
+        setLoading(false);
+        return;
+      }
+      if (!formData.confirmPassword) {
+        setError("Please confirm your new password");
+        setLoading(false);
+        return;
+      }
+      if (formData.newPassword !== formData.confirmPassword) {
+        setError("New passwords do not match");
+        setLoading(false);
+        return;
+      }
+      if (formData.newPassword.length < 8) {
+        setError("New password must be at least 8 characters long");
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const submitData = new FormData();
       
-      // Add form fields
+      // Add form fields except password fields (they'll be handled separately)
       Object.entries(formData).forEach(([key, value]) => {
-        submitData.append(key, value.toString());
+        if (!['currentPassword', 'newPassword', 'confirmPassword'].includes(key)) {
+          submitData.append(key, value.toString());
+        }
       });
+
+      // Add password fields if they're filled
+      if (formData.currentPassword && formData.newPassword) {
+        submitData.append('currentPassword', formData.currentPassword);
+        submitData.append('newPassword', formData.newPassword);
+      }
 
       // Add photo if changed
       if (photoFile) {
@@ -187,6 +274,13 @@ export default function EditWorkerProfile() {
         setError(result.error || "Failed to update profile");
       } else {
         setSuccess("Profile updated successfully!");
+        // Clear password fields after successful update
+        setFormData(prev => ({
+          ...prev,
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        }));
         // Clear previews after successful update
         setPhotoPreview("");
         setPassportPreview("");
@@ -200,7 +294,7 @@ export default function EditWorkerProfile() {
     }
   };
 
-  if (!session || session.user.role !== "WORKER") {
+  if (!session || session.user?.role?.toUpperCase() !== "WORKER") {
     return null;
   }
 
@@ -256,6 +350,170 @@ export default function EditWorkerProfile() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Information */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Enter your full name"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-2">
+                    Age *
+                  </label>
+                  <input
+                    type="number"
+                    id="age"
+                    name="age"
+                    value={formData.age}
+                    onChange={handleInputChange}
+                    placeholder="Enter your age"
+                    min="18"
+                    max="100"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+                    Gender *
+                  </label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 0788123456"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="district" className="block text-sm font-medium text-gray-700 mb-2">
+                    Location/District *
+                  </label>
+                  <select
+                    id="district"
+                    name="district"
+                    value={formData.district}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    <option value="">Select your district</option>
+                    <option value="GASABO">Gasabo</option>
+                    <option value="KICUKIRO">Kicukiro</option>
+                    <option value="NYARUGENGE">Nyarugenge</option>
+                    <option value="NYABUGOGO">Nyabugogo</option>
+                    <option value="KAYONZA">Kayonza</option>
+                    <option value="RWAMAGANA">Rwamagana</option>
+                    <option value="MUSANZE">Musanze</option>
+                    <option value="HUYE">Huye</option>
+                    <option value="RUBAVU">Rubavu</option>
+                    <option value="NYAGATARE">Nyagatare</option>
+                    <option value="GIHANGWE">Gihangwe</option>
+                    <option value="NGOMA">Ngoma</option>
+                    <option value="NYANZA">Nyanza</option>
+                    <option value="GICUMBI">Gicumbi</option>
+                    <option value="RULINDO">Rulindo</option>
+                    <option value="KARONGI">Karongi</option>
+                    <option value="NYABITUHU">Nyabihu</option>
+                    <option value="RUSIZI">Rusizi</option>
+                    <option value="NYAMASHEKE">Nyamasheke</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Password Change Section */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
+              <p className="text-sm text-gray-600 mb-4">Leave these fields empty if you don't want to change your password</p>
+              <div className="grid md:grid-cols-3 gap-6">
+                <div>
+                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    id="currentPassword"
+                    name="currentPassword"
+                    value={formData.currentPassword}
+                    onChange={handleInputChange}
+                    placeholder="Enter current password"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    id="newPassword"
+                    name="newPassword"
+                    value={formData.newPassword}
+                    onChange={handleInputChange}
+                    placeholder="Enter new password"
+                    minLength={8}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    placeholder="Confirm new password"
+                    minLength={8}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Profile Photo */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Photo</h3>

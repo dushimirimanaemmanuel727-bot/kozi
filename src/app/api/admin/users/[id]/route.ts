@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { query } from "@/lib/db";
 
 // GET user by ID
 export async function GET(
@@ -13,23 +13,12 @@ export async function GET(
     const { id } = await params;
     const session = await requireAdmin();
     
-    const user = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        employerProfile: true,
-        workerProfile: true,
-        jobsPosted: {
-          select: { id: true, title: true, status: true },
-          take: 5,
-          orderBy: { createdAt: "desc" }
-        },
-        applications: {
-          select: { id: true, status: true, job: { select: { title: true } } },
-          take: 5,
-          orderBy: { createdAt: "desc" }
-        }
-      }
-    });
+      const userResult = await query(
+      'SELECT * FROM "User" WHERE id = $1',
+      [id]
+    );
+    
+    const user = userResult.rows[0];
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -66,10 +55,10 @@ export async function PUT(
     const body = await request.json();
     const { name, email, phone, role, status } = body;
 
-    // Only SUPERADMIN can change roles
-    if (role && session.user.role !== "SUPERADMIN") {
+    // Only superadmin can change roles
+    if (role && session.user.role?.toLowerCase() !== "superadmin") {
       return NextResponse.json(
-        { error: "Only SUPERADMIN can change user roles" },
+        { error: "Only superadmin can change user roles" },
         { status: 403 }
       );
     }
@@ -80,14 +69,38 @@ export async function PUT(
     if (phone) updateData.phone = phone;
     if (role) updateData.role = role;
 
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      include: {
-        employerProfile: true,
-        workerProfile: true
-      }
-    });
+    // Check if user exists
+    const userResult = await query(
+      'SELECT * FROM "User" WHERE id = $1',
+      [id]
+    );
+    
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Prevent role change of superadmin users by non-superadmin
+    if (role && user.role?.toLowerCase() === "superadmin" && session.user.role?.toLowerCase() !== "superadmin") {
+      return NextResponse.json(
+        { error: "Cannot change superadmin user role" },
+        { status: 403 }
+      );
+    }
+
+    const updatedUserResult = await query(
+      `UPDATE "User" 
+       SET "name" = COALESCE($1, "name"), 
+           "email" = COALESCE($2, "email"), 
+           "phone" = COALESCE($3, "phone"), 
+           "role" = COALESCE($4, "role") 
+       WHERE id = $5 
+       RETURNING *`,
+      [name, email, phone, role, id]
+    );
+    
+    const updatedUser = updatedUserResult.rows[0];
 
     // Convert Decimal to number for serialization
     const serializedUser = {
@@ -117,35 +130,39 @@ export async function DELETE(
     const { id } = await params;
     const session = await requireAdmin();
     
-    // Only SUPERADMIN can delete users
-    if (session.user.role !== "SUPERADMIN") {
+    // Only superadmin can delete users
+    if (session.user.role?.toLowerCase() !== "superadmin") {
       return NextResponse.json(
-        { error: "Only SUPERADMIN can delete users" },
+        { error: "Only superadmin can delete users" },
         { status: 403 }
       );
     }
 
     // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { id }
-    });
+    const userResult = await query(
+      'SELECT * FROM "User" WHERE id = $1',
+      [id]
+    );
+    
+    const user = userResult.rows[0];
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Prevent deletion of SUPERADMIN users
-    if (user.role === "SUPERADMIN") {
+    // Prevent deletion of superadmin users
+    if (user.role?.toLowerCase() === "superadmin") {
       return NextResponse.json(
-        { error: "Cannot delete SUPERADMIN users" },
+        { error: "Cannot delete superadmin users" },
         { status: 403 }
       );
     }
 
-    // Delete user (this will cascade delete related records)
-    await prisma.user.delete({
-      where: { id }
-    });
+    // Delete user
+    await query(
+      'DELETE FROM "User" WHERE id = $1',
+      [id]
+    );
 
     return NextResponse.json({ message: "User deleted successfully" });
   } catch (error: any) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
@@ -15,6 +15,14 @@ export async function POST(request: NextRequest) {
 
     if (session.user.role !== "WORKER") {
       return NextResponse.json({ error: "Only workers can complete this profile" }, { status: 403 });
+    }
+
+    // Get user from session
+    const userResult = await query('SELECT id FROM "User" WHERE phone = $1', [session.user.phone]);
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const formData = await request.formData();
@@ -47,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (photoFile && photoFile.size > 0) {
       const photoBytes = await photoFile.arrayBuffer();
       const photoBuffer = Buffer.from(photoBytes);
-      const photoFileName = `${session.user.id}-photo-${Date.now()}.${photoFile.type.split('/')[1]}`;
+      const photoFileName = `${user.id}-photo-${Date.now()}.${photoFile.type.split('/')[1]}`;
       const photoPath = path.join(uploadsDir, photoFileName);
       await writeFile(photoPath, photoBuffer);
       photoUrl = `/uploads/${photoFileName}`;
@@ -58,29 +66,25 @@ export async function POST(request: NextRequest) {
     if (passportFile && passportFile.size > 0) {
       const passportBytes = await passportFile.arrayBuffer();
       const passportBuffer = Buffer.from(passportBytes);
-      const passportFileName = `${session.user.id}-passport-${Date.now()}.${passportFile.name.split('.').pop()}`;
+      const passportFileName = `${user.id}-passport-${Date.now()}.${passportFile.name.split('.').pop()}`;
       const passportPath = path.join(uploadsDir, passportFileName);
       await writeFile(passportPath, passportBuffer);
       passportUrl = `/uploads/${passportFileName}`;
     }
 
     // Update worker profile
-    const updatedProfile = await prisma.workerProfile.update({
-      where: { userId: session.user.id },
-      data: {
-        category,
-        skills: skills || null,
-        experienceYears,
-        availability,
-        minMonthlyPay,
-        liveIn,
-        bio: bio || null,
-        photoUrl: photoUrl || null,
-        nationalId,
-        passportNumber,
-        passportUrl: passportUrl || null,
-      },
-    });
+    const updateResult = await query(
+      `UPDATE "WorkerProfile" 
+       SET category = $1, skills = $2, "experienceYears" = $3, availability = $4, 
+           "minMonthlyPay" = $5, "liveIn" = $6, bio = $7, "photoUrl" = $8, 
+           nationalId = $9, "passportNumber" = $10, "passportUrl" = $11
+       WHERE userId = $12
+       RETURNING *`,
+      [category, skills || null, experienceYears, availability, minMonthlyPay, 
+       liveIn, bio || null, photoUrl || null, nationalId, passportNumber, 
+       passportUrl || null, user.id]
+    );
+    const updatedProfile = updateResult.rows[0];
 
     return NextResponse.json({ 
       message: "Profile completed successfully", 

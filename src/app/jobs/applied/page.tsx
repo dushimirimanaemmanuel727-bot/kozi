@@ -48,7 +48,7 @@ export default function AppliedJobs() {
       return;
     }
 
-    if (session?.user?.role !== "WORKER") {
+    if (session?.user?.role?.toUpperCase() !== "WORKER") {
       router.push("/dashboard");
       return;
     }
@@ -140,7 +140,7 @@ export default function AppliedJobs() {
     }
   };
 
-  if (!session || session.user.role !== "WORKER") {
+  if (!session || session.user?.role?.toUpperCase() !== "WORKER") {
     return null;
   }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -15,15 +15,22 @@ export async function GET() {
       return NextResponse.json({ error: "Not a worker" }, { status: 403 });
     }
 
-    const workerProfile = await prisma.workerProfile.findUnique({
-      where: { userId: session.user.id },
-      select: {
-        nationalId: true,
-        passportNumber: true,
-        photoUrl: true,
-        passportUrl: true,
-      }
-    });
+    // Get user from session
+    const userResult = await query('SELECT id FROM "User" WHERE phone = $1', [session.user.phone]);
+    const user = userResult.rows[0];
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Get worker profile
+    const profileResult = await query(
+      `SELECT nationalId, passportNumber, photoUrl, passportUrl 
+       FROM "WorkerProfile" 
+       WHERE userId = $1`,
+      [user.id]
+    );
+    const workerProfile = profileResult.rows[0];
 
     // Check if required fields are completed
     const completed = !!(

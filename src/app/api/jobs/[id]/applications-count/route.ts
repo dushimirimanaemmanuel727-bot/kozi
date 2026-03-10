@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function GET(
   req: NextRequest,
@@ -16,13 +16,14 @@ export async function GET(
     }
 
     // Count applications for this job
-    const applicationCount = await prisma.application.count({
-      where: {
-        jobId: jobId,
-      },
-    });
+    const result = await query(
+      'SELECT COUNT(*) as count FROM "Application" WHERE "jobId" = $1',
+      [jobId]
+    );
+    
+    const applicationCount = result.rows[0].count;
 
-    return NextResponse.json({ count: applicationCount });
+    return NextResponse.json({ count: parseInt(applicationCount) });
 
   } catch (error) {
     console.error("Applications count error:", error);

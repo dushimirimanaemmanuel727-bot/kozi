@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -11,65 +11,73 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "EMPLOYER") {
+    if (session?.user?.role?.toUpperCase() !== "EMPLOYER") {
       return NextResponse.json({ error: "Not an employer" }, { status: 403 });
     }
 
     // Get employer user ID from session phone
-    const employer = await prisma.user.findUnique({
-      where: { phone: session.user.phone },
-      select: { id: true }
-    });
+    const employerResult = await query('SELECT id FROM "User" WHERE phone = $1', [session.user.phone]);
+    const employer = employerResult.rows[0];
 
     if (!employer) {
       return NextResponse.json({ error: "Employer not found" }, { status: 404 });
     }
 
-    const employerProfile = await prisma.employerProfile.findUnique({
-      where: { userId: employer.id },
-      include: {
-        user: {
-          select: {
-            name: true,
-            phone: true,
-            district: true
-          }
-        }
-      }
-    });
+    // Get employer profile
+    const profileResult = await query(
+      'SELECT * FROM "EmployerProfile" WHERE "userId" = $1',
+      [employer.id]
+    );
+    const employerProfile = profileResult.rows[0];
 
     if (!employerProfile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+      // Return default/empty profile data if no profile exists yet
+      return NextResponse.json({
+        // EmployerProfile fields with defaults
+        id: null,
+        userId: employer.id,
+        companyName: null,
+        website: null,
+        description: null,
+        industry: null,
+        companySize: null,
+        rating: 0,
+        reviewCount: 0,
+        logoUrl: null,
+        createdAt: null,
+        updatedAt: null,
+        // Stats
+        jobCount: 0,
+        applicationCount: 0,
+        hiredCount: 0,
+        recentJobs: []
+      });
     }
 
     // Get additional stats
-    const jobCount = await prisma.job.count({
-      where: { employerId: employer.id }
-    });
+    const jobCountResult = await query(
+      'SELECT COUNT(*) as count FROM "Job" WHERE "employerId" = $1',
+      [employer.id]
+    );
+    const jobCount = parseInt(jobCountResult.rows[0].count);
 
-    const applicationCount = await prisma.application.count({
-      where: {
-        job: { employerId: employer.id }
-      }
-    });
+    const applicationCountResult = await query(
+      'SELECT COUNT(*) as count FROM "Application" WHERE job."employerId" = $1',
+      [employer.id]
+    );
+    const applicationCount = parseInt(applicationCountResult.rows[0].count);
 
-    const hiredCount = await prisma.application.count({
-      where: {
-        job: { employerId: employer.id },
-        status: "ACCEPTED"
-      }
-    });
+    const hiredCountResult = await query(
+      'SELECT COUNT(*) as count FROM "Application" WHERE job."employerId" = $1 AND status = $2',
+      [employer.id, 'ACCEPTED']
+    );
+    const hiredCount = parseInt(hiredCountResult.rows[0].count);
 
-    const recentJobs = await prisma.job.findMany({
-      where: { employerId: employer.id },
-      select: {
-        title: true,
-        status: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: "desc" },
-      take: 5
-    });
+    const recentJobsResult = await query(
+      'SELECT title, status, "createdAt" FROM "Job" WHERE "employerId" = $1 ORDER BY "createdAt" DESC LIMIT 5',
+      [employer.id]
+    );
+    const recentJobs = recentJobsResult.rows;
 
     return NextResponse.json({
       ...employerProfile,

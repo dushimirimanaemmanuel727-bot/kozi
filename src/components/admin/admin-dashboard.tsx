@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,9 +16,11 @@ import {
   UserCheck,
   Eye,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Bell
 } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface AdminDashboardProps {
   session: any;
@@ -95,21 +98,25 @@ export function AdminDashboard({
   ];
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8 p-4 md:p-8"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-1">
-            Welcome back, {session?.user?.name}. Here's what's happening in your system.
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Admin Dashboard</h1>
+          <p className="text-gray-500 mt-1 font-medium">
+            Welcome back, {session?.user?.name}. Manage your system overview here.
           </p>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline">
+          <Button variant="outline" className="rounded-xl border-gray-200 hover:bg-gray-50">
             <Eye className="w-4 h-4 mr-2" />
             View Reports
           </Button>
-          <Button>
+          <Button className="rounded-xl bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-100">
             <TrendingUp className="w-4 h-4 mr-2" />
             Export Analytics
           </Button>
@@ -121,62 +128,74 @@ export function AdminDashboard({
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Link key={index} href={stat.href}>
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                      <div className="flex items-center mt-2">
-                        {stat.change.startsWith('+') ? (
-                          <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
-                        ) : (
-                          <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
-                        )}
-                        <span className={`text-sm ${
-                          stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {stat.change} from last month
-                        </span>
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Link href={stat.href}>
+                <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer border-none shadow-sm ring-1 ring-gray-100 rounded-2xl overflow-hidden group">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{stat.title}</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                        <div className="flex items-center mt-3">
+                          <div className={cn(
+                            "flex items-center px-2 py-0.5 rounded-full text-xs font-bold",
+                            stat.change.startsWith('+') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                          )}>
+                            {stat.change.startsWith('+') ? (
+                              <ArrowUpRight className="w-3 h-3 mr-1" />
+                            ) : (
+                              <ArrowDownRight className="w-3 h-3 mr-1" />
+                            )}
+                            {stat.change}
+                          </div>
+                          <span className="text-xs text-gray-400 ml-2 font-medium">vs last month</span>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "p-4 rounded-2xl transition-transform group-hover:scale-110",
+                        stat.bgColor
+                      )}>
+                        <Icon className={cn("w-7 h-7", stat.color)} />
                       </div>
                     </div>
-                    <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                      <Icon className={`w-6 h-6 ${stat.color}`} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+                  </CardContent>
+                </Card>
+              </Link>
+            </motion.div>
           );
         })}
       </div>
 
       {/* Charts and Tables Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* User Breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Users className="w-5 h-5 mr-2" />
+        <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center text-lg font-bold text-gray-800">
+              <Users className="w-5 h-5 mr-2 text-blue-600" />
               User Distribution
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="pt-4">
+            <div className="space-y-5">
               {userBreakdown.map((item, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className={`w-3 h-3 rounded-full ${item.color} mr-3`}></div>
-                    <span className="text-sm font-medium">{item.label}</span>
+                    <div className={`w-3 h-3 rounded-full ${item.color} mr-3 shadow-sm`}></div>
+                    <span className="text-sm font-semibold text-gray-700">{item.label}</span>
                   </div>
-                  <span className="text-sm font-bold">{item.value.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-gray-900">{item.value.toLocaleString()}</span>
                 </div>
               ))}
-              <div className="pt-4 border-t">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total Users</span>
-                  <span className="font-bold">{stats.totalUsers.toLocaleString()}</span>
+              <div className="pt-5 border-t border-gray-50">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-500">Total Registered</span>
+                  <span className="text-lg font-bold text-gray-900">{stats.totalUsers.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -184,34 +203,40 @@ export function AdminDashboard({
         </Card>
 
         {/* System Health */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Shield className="w-5 h-5 mr-2" />
-              System Health
+        <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center text-lg font-bold text-gray-800">
+              <Shield className="w-5 h-5 mr-2 text-green-600" />
+              System Status
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="pt-4">
+            <div className="space-y-5">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Pending Applications</span>
-                <Badge variant="secondary">{stats.pendingApplications}</Badge>
+                <span className="text-sm font-medium text-gray-600">Pending Apps</span>
+                <Badge variant="secondary" className="bg-orange-50 text-orange-700 hover:bg-orange-50 border-none font-bold px-3">
+                  {stats.pendingApplications}
+                </Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Total Reviews</span>
-                <Badge variant="outline">{stats.totalReviews}</Badge>
+                <span className="text-sm font-medium text-gray-600">Total Reviews</span>
+                <Badge variant="outline" className="text-gray-700 border-gray-200 font-bold px-3">
+                  {stats.totalReviews}
+                </Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Average Rating</span>
-                <div className="flex items-center">
-                  <Star className="w-4 h-4 text-yellow-500 mr-1" />
-                  <span className="font-medium">{stats.avgRating.toFixed(1)}</span>
+                <span className="text-sm font-medium text-gray-600">Avg Rating</span>
+                <div className="flex items-center bg-yellow-50 px-3 py-1 rounded-full">
+                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 mr-1.5" />
+                  <span className="text-sm font-bold text-yellow-700">{stats.avgRating.toFixed(1)}</span>
                 </div>
               </div>
-              <div className="pt-4 border-t">
+              <div className="pt-5 border-t border-gray-50">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">System Status</span>
-                  <Badge className="bg-green-100 text-green-800">Healthy</Badge>
+                  <span className="text-sm font-medium text-gray-500">Service Uptime</span>
+                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-none font-bold px-3">
+                    Healthy
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -219,37 +244,37 @@ export function AdminDashboard({
         </Card>
 
         {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Clock className="w-5 h-5 mr-2" />
-              Quick Actions
+        <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center text-lg font-bold text-gray-800">
+              <Clock className="w-5 h-5 mr-2 text-purple-600" />
+              Priority Tasks
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <div className="space-y-3">
               <Link href="/admin/verifications">
-                <Button variant="outline" className="w-full justify-start">
-                  <UserCheck className="w-4 h-4 mr-2" />
-                  Review Verifications ({stats.pendingVerifications})
+                <Button variant="outline" className="w-full justify-start rounded-xl border-gray-100 hover:bg-gray-50 text-gray-700 font-semibold group transition-all">
+                  <UserCheck className="w-4 h-4 mr-3 text-blue-500 group-hover:scale-110 transition-transform" />
+                  Verifications ({stats.pendingVerifications})
                 </Button>
               </Link>
               <Link href="/admin/users">
-                <Button variant="outline" className="w-full justify-start">
-                  <Users className="w-4 h-4 mr-2" />
-                  Manage Users
+                <Button variant="outline" className="w-full justify-start rounded-xl border-gray-100 hover:bg-gray-50 text-gray-700 font-semibold group transition-all">
+                  <Users className="w-4 h-4 mr-3 text-green-500 group-hover:scale-110 transition-transform" />
+                  User Management
                 </Button>
               </Link>
               <Link href="/admin/jobs">
-                <Button variant="outline" className="w-full justify-start">
-                  <Briefcase className="w-4 h-4 mr-2" />
-                  Review Jobs
+                <Button variant="outline" className="w-full justify-start rounded-xl border-gray-100 hover:bg-gray-50 text-gray-700 font-semibold group transition-all">
+                  <Briefcase className="w-4 h-4 mr-3 text-purple-500 group-hover:scale-110 transition-transform" />
+                  Review Listings
                 </Button>
               </Link>
               <Link href="/admin/notifications">
-                <Button variant="outline" className="w-full justify-start">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Send Notifications
+                <Button variant="outline" className="w-full justify-start rounded-xl border-gray-100 hover:bg-gray-50 text-gray-700 font-semibold group transition-all">
+                  <Bell className="w-4 h-4 mr-3 text-orange-500 group-hover:scale-110 transition-transform" />
+                  System Alerts
                 </Button>
               </Link>
             </div>
@@ -278,7 +303,7 @@ export function AdminDashboard({
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant={user.role === 'WORKER' ? 'secondary' : 'outline'}>
+                    <Badge variant={user.role?.toLowerCase() === 'worker' ? 'secondary' : 'outline'}>
                       {user.role}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">
@@ -316,6 +341,6 @@ export function AdminDashboard({
           </CardContent>
         </Card>
       </div>
-    </div>
+    </motion.div>
   );
 }

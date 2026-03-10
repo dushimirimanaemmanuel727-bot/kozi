@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -11,15 +11,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "EMPLOYER") {
+    if (session.user.role !== "employer") {
       return NextResponse.json({ error: "Only employers can access these analytics" }, { status: 403 });
     }
 
     // Get employer user ID
-    const employer = await prisma.user.findUnique({
-      where: { phone: session.user.phone },
-      select: { id: true }
-    });
+    const employerResult = await query('SELECT id FROM "User" WHERE phone = $1', [session.user.phone]);
+    const employer = employerResult.rows[0];
 
     if (!employer) {
       return NextResponse.json({ error: "Employer not found" }, { status: 404 });
@@ -29,102 +27,66 @@ export async function GET() {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    const jobPostingsTrend = await prisma.job.groupBy({
-      by: ['createdAt'],
-      where: {
-        employerId: employer.id,
-        createdAt: {
-          gte: sixMonthsAgo
-        }
-      },
-      _count: {
-        id: true
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
-    });
+    const jobPostingsTrendResult = await query(`
+      SELECT DATE_TRUNC('month', "createdAt") as month, COUNT(*) as count
+      FROM "Job"
+      WHERE "employerId" = $1 AND "createdAt" >= $2
+      GROUP BY month
+      ORDER BY month ASC
+    `, [employer.id, sixMonthsAgo]);
+    const jobPostingsTrend = jobPostingsTrendResult.rows;
 
     // Get applications trend (last 6 months)
-    const applicationsTrend = await prisma.application.groupBy({
-      by: ['createdAt'],
-      where: {
-        job: {
-          employerId: employer.id
-        },
-        createdAt: {
-          gte: sixMonthsAgo
-        }
-      },
-      _count: {
-        id: true
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
-    });
+    const applicationsTrendResult = await query(`
+      SELECT DATE_TRUNC('month', a."createdAt") as month, COUNT(*) as count
+      FROM "Application" a
+      JOIN "Job" j ON a."jobId" = j.id
+      WHERE j."employerId" = $1 AND a."createdAt" >= $2
+      GROUP BY month
+      ORDER BY month ASC
+    `, [employer.id, sixMonthsAgo]);
+    const applicationsTrend = applicationsTrendResult.rows;
 
     // Get job category distribution
-    const categoryDistribution = await prisma.job.groupBy({
-      by: ['category'],
-      where: {
-        employerId: employer.id
-      },
-      _count: {
-        id: true
-      }
-    });
+    const categoryDistributionResult = await query(`
+      SELECT category, COUNT(*) as count
+      FROM "Job"
+      WHERE "employerId" = $1
+      GROUP BY category
+    `, [employer.id]);
+    const categoryDistribution = categoryDistributionResult.rows;
 
     // Get recent applications (last 5)
-    const recentApplications = await prisma.application.findMany({
-      where: {
-        job: {
-          employerId: employer.id
-        }
-      },
-      include: {
-        job: {
-          select: {
-            title: true,
-            category: true
-          }
-        },
-        worker: {
-          include: {
-            workerProfile: {
-              select: {
-                photoUrl: true
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 5
-    });
+    const recentApplicationsResult = await query(`
+      SELECT 
+        a.id, a.status, a."createdAt",
+        j.title as job_title, j.category as job_category,
+        u.name as worker_name, wp."photoUrl" as worker_photo
+      FROM "Application" a
+      JOIN "Job" j ON a."jobId" = j.id
+      JOIN "User" u ON a."workerId" = u.id
+      LEFT JOIN "WorkerProfile" wp ON u.id = wp."userId"
+      WHERE j."employerId" = $1
+      ORDER BY a."createdAt" DESC
+      LIMIT 5
+    `, [employer.id]);
+    const recentApplications = recentApplicationsResult.rows.map((row: any) => ({
+      ...row,
+      job: { title: row.job_title, category: row.job_category },
+      worker: { name: row.worker_name, workerProfile: { photoUrl: row.worker_photo } }
+    }));
 
     // Get popular job categories (most applications)
-    const popularCategories = await prisma.job.findMany({
-      where: {
-        employerId: employer.id
-      },
-      select: {
-        category: true,
-        _count: {
-          select: {
-            applications: true
-          }
-        }
-      },
-      orderBy: {
-        applications: {
-          _count: 'desc'
-        }
-      },
-      take: 5
-    });
+    const popularCategoriesResult = await query(`
+      SELECT j.category, COUNT(a.id) as applications_count
+      FROM "Job" j
+      LEFT JOIN "Application" a ON j.id = a."jobId"
+      WHERE j."employerId" = $1
+      GROUP BY j.category
+      ORDER BY applications_count DESC
+      LIMIT 5
+    `, [employer.id]);
+    const popularCategories = popularCategoriesResult.rows;
 
     return NextResponse.json({
       jobPostingsTrend,

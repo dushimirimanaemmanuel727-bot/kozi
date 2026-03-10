@@ -12,10 +12,11 @@ export async function getConnection(): Promise<PoolClient> {
 }
 
 // Query helper
-export async function query(text: string, params?: any[]): Promise<any> {
+export async function query(text: string | TemplateStringsArray, params?: any[]): Promise<any> {
   const client = await getConnection();
   try {
-    const result = await client.query(text, params);
+    const queryString = typeof text === 'string' ? text : text.join('');
+    const result = await client.query(queryString, params);
     return result;
   } finally {
     client.release();

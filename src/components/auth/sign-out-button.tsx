@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
+import { useNotifications } from "@/components/ui/notification-toast";
 
 interface SignOutButtonProps {
   variant?: "full" | "compact";
@@ -11,11 +12,17 @@ interface SignOutButtonProps {
 export default function SignOutButton({ variant = "full" }: SignOutButtonProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const { showNotification } = useNotifications();
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
       await signOut({ redirect: false });
+      showNotification({
+        type: "info",
+        title: "Signed Out",
+        message: "You have been successfully logged out.",
+      });
       // Redirect to homepage after successful sign out
       window.location.href = "/";
     } catch (error) {

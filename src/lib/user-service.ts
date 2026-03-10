@@ -9,12 +9,12 @@ export interface User {
   role: string;
   district?: string;
   languages?: string;
-  passwordHash?: string;
+  passwordhash?: string;
   suspended: boolean;
-  suspensionReason?: string;
-  suspendedAt?: Date;
-  suspendedBy?: string;
-  createdAt: Date;
+  suspensionreason?: string;
+  suspendedat?: Date;
+  suspendedby?: string;
+  createdat: Date;
 }
 
 export interface CreateUserData {
@@ -41,7 +41,7 @@ export async function findUserById(id: string): Promise<User | null> {
 
 // Create new user
 export async function createUser(userData: CreateUserData): Promise<User> {
-  const { name, phone, email, role, district, languages, password } = userData;
+  const { name, phone, email, role, district, languages = [], password } = userData;
   
   const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const passwordHash = password ? await bcrypt.hash(password, 12) : undefined;
@@ -49,7 +49,7 @@ export async function createUser(userData: CreateUserData): Promise<User> {
   const result = await query(
     `INSERT INTO "User" (
       id, name, phone, email, role, district, languages, 
-      passwordHash, suspended, createdAt
+      passwordhash, suspended, createdAt
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING *`,
     [id, name, phone, email, role, district, languages, passwordHash, false, new Date()]
@@ -62,11 +62,11 @@ export async function createUser(userData: CreateUserData): Promise<User> {
 export async function verifyPassword(phone: string, password: string): Promise<User | null> {
   const user = await findUserByPhone(phone);
   
-  if (!user || !user.passwordHash) {
+  if (!user || !user.passwordhash) {
     return null;
   }
   
-  const isValid = await bcrypt.compare(password, user.passwordHash);
+  const isValid = await bcrypt.compare(password, user.passwordhash);
   return isValid ? user : null;
 }
 

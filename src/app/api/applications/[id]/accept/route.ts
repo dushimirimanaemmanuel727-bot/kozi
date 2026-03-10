@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function POST(
   req: NextRequest,
@@ -20,33 +20,33 @@ export async function POST(
     }
 
     // Get employer user ID from session phone
-    const employer = await prisma.user.findUnique({
-      where: { phone: session.user.phone },
-      select: { id: true }
-    });
+    const employerResult = await query(
+      `SELECT id FROM "User" WHERE phone = $1`,
+      [session.user.phone]
+    );
+    const employer = employerResult.rows[0];
 
     if (!employer) {
       return NextResponse.json({ error: "Employer not found" }, { status: 404 });
     }
 
     // Get the application and verify ownership
-    const application = await prisma.application.findUnique({
-      where: { id: applicationId },
-      include: {
-        job: {
-          select: { 
-            employerId: true,
-            title: true
-          }
-        }
-      }
-    });
+    const applicationResult = await query(
+      `SELECT 
+        a.id, a.status, a."workerId",
+        j.id as "jobId", j."employerId", j.title as "jobTitle"
+       FROM "Application" a 
+       JOIN "Job" j ON a."jobId" = j.id 
+       WHERE a.id = $1`,
+      [applicationId]
+    );
+    const application = applicationResult.rows[0];
 
     if (!application) {
       return NextResponse.json({ error: "Application not found" }, { status: 404 });
     }
 
-    if (application.job.employerId !== employer.id) {
+    if (application.employerId !== employer.id) {
       return NextResponse.json({ error: "Not authorized to accept this application" }, { status: 403 });
     }
 
@@ -55,16 +55,26 @@ export async function POST(
     }
 
     // Update application status
-    const updatedApplication = await prisma.application.update({
-      where: { id: applicationId },
-      data: { status: "ACCEPTED" }
-    });
+    const updatedApplicationResult = await query(
+      `UPDATE "Application" SET status = 'ACCEPTED' WHERE id = $1 RETURNING *`,
+      [applicationId]
+    );
+    const updatedApplication = updatedApplicationResult.rows[0];
 
-    // Create notification for worker using raw SQL (workaround for Prisma client not being updated)
-    await prisma.$executeRaw`
-      INSERT INTO "Notification" (id, "userId", title, message, type, "read", "createdAt")
-      VALUES (${crypto.randomUUID()}, ${application.workerId}, ${'Application Accepted! 🎉'}, ${`Your application for "${application.job?.title || "a position"}" has been accepted! Contact the employer to discuss next steps.`}, ${'SUCCESS'}, ${false}, ${new Date()})
-    `;
+    // Create notification for worker
+    await query(
+      `INSERT INTO "Notification" (id, "userId", title, message, type, "read", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        crypto.randomUUID(),
+        application.workerId,
+        'Application Accepted! 🎉',
+        `Your application for "${application.jobTitle || "a position"}" has been accepted! Contact the employer to discuss next steps.`,
+        'SUCCESS',
+        false,
+        new Date()
+      ]
+    );
 
     return NextResponse.json({ 
       message: "Application accepted successfully",

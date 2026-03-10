@@ -24,7 +24,7 @@ export default function EmployerDashboard() {
 
   // Check if user is employer
   useEffect(() => {
-    if (session && session.user.role !== "EMPLOYER") {
+    if (session && session.user.role?.toUpperCase() !== "EMPLOYER") {
       router.push("/dashboard");
     }
   }, [session, router]);
@@ -33,10 +33,10 @@ export default function EmployerDashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: getDashboardStats,
-    enabled: session?.user?.role === "EMPLOYER"
+    enabled: session?.user?.role?.toUpperCase() === "EMPLOYER"
   });
 
-  if (!session || session.user.role !== "EMPLOYER") {
+  if (!session || session.user.role?.toUpperCase() !== "EMPLOYER") {
     return null;
   }
 

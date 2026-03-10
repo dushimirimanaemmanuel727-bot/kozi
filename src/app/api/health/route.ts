@@ -1,110 +1,40 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
 
-export async function GET() {
-  const startTime = Date.now();
-  
+export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Health check initiated...');
+    const startTime = Date.now();
     
-    // Test database connection with timing
-    const connectionStart = Date.now();
-    await prisma.$queryRaw`SELECT 1 as health_check`;
-    const connectionTime = Date.now() - connectionStart;
+    // Test basic database connection
+    const result = await query('SELECT 1 as test, NOW() as timestamp');
+    const queryTime = Date.now() - startTime;
     
-    console.log(`✅ Health check: Database connection successful in ${connectionTime}ms`);
+    // Test user table access
+    const userResult = await query('SELECT COUNT(*) as count FROM "User"');
+    const userCount = parseInt(userResult.rows[0].count);
     
-    // Get database statistics for detailed health information
-    const statsStart = Date.now();
-    let healthData = {
-      users: 0,
-      jobs: 0,
-      applications: 0,
-      tablesExist: false,
-      migrationRequired: false
-    };
-    
-    try {
-      const [userCount, jobCount, applicationCount] = await Promise.all([
-        prisma.user.count(),
-        prisma.job.count(),
-        prisma.application.count()
-      ]);
-      
-      healthData = {
-        users: userCount,
-        jobs: jobCount,
-        applications: applicationCount,
-        tablesExist: true,
-        migrationRequired: false
-      };
-      
-      console.log(`📊 Database stats retrieved: ${userCount} users, ${jobCount} jobs, ${applicationCount} applications`);
-    } catch (tableError) {
-      if (tableError instanceof Error && tableError.message.includes('does not exist')) {
-        console.warn('⚠️  Health check: Database tables not found - Migration required');
-        healthData.migrationRequired = true;
-      } else {
-        throw tableError;
-      }
-    }
-    
-    const statsTime = Date.now() - statsStart;
-    console.log(`📊 Database stats check completed in ${statsTime}ms`);
-    
-    const totalTime = Date.now() - startTime;
-    console.log(`🎉 Health check completed successfully in ${totalTime}ms`);
-    
-    const health = {
-      status: healthData.migrationRequired ? 'migration_required' : 'ok',
+    return NextResponse.json({
+      status: 'healthy',
       timestamp: new Date().toISOString(),
-      service: 'kazi-home',
-      version: '1.0.0',
       database: {
-        status: 'connected',
-        connectionTime: `${connectionTime}ms`,
-        queryTime: `${statsTime}ms`,
-        tablesExist: healthData.tablesExist,
-        migrationRequired: healthData.migrationRequired,
-        stats: healthData.tablesExist ? {
-          users: healthData.users,
-          jobs: healthData.jobs,
-          applications: healthData.applications
-        } : null
+        connected: true,
+        queryTime: `${queryTime}ms`,
+        userCount: userCount
       },
-      performance: {
-        totalTime: `${totalTime}ms`
-      },
-      message: healthData.migrationRequired 
-        ? 'Database connected but tables not created - Run migrations required'
-        : 'All systems operational'
-    };
-
-    return NextResponse.json(health, { status: healthData.migrationRequired ? 200 : 200 });
-  } catch (error) {
-    const totalTime = Date.now() - startTime;
-    console.error(`❌ Health check: Database connection failed after ${totalTime}ms:`, error);
-    console.error('🔥 Health check error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV
+      environment: process.env.NODE_ENV || 'development'
     });
     
-    return NextResponse.json(
-      { 
-        status: 'error', 
-        timestamp: new Date().toISOString(),
-        service: 'kazi-home',
-        database: {
-          status: 'disconnected',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        },
-        performance: {
-          totalTime: `${totalTime}ms`
-        }
-      }, 
-      { status: 503 }
-    );
+  } catch (error) {
+    console.error('Health check failed:', error);
+    
+    return NextResponse.json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      database: {
+        connected: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
+      environment: process.env.NODE_ENV || 'development'
+    }, { status: 500 });
   }
 }

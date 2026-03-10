@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,23 +29,19 @@ export async function POST(request: NextRequest) {
 
     const status = action === "APPROVE" ? "APPROVED" : "REJECTED";
 
-    const result = await prisma.verification.updateMany({
-      where: {
-        id: { in: verificationIds },
-        status: "PENDING" // Only update pending verifications
-      },
-      data: {
-        status,
-        expiresAt: expiresAt && action === "APPROVE" ? new Date(expiresAt) : undefined
-      }
-    });
+      const result = await query(
+      `UPDATE "Verification" 
+       SET status = $1, "expiresAt" = $2 
+       WHERE id = ANY($3) AND status = 'PENDING'`,
+      [status, expiresAt && action === "APPROVE" ? new Date(expiresAt) : null, verificationIds]
+    );
 
     // TODO: Send notifications to affected users
     // await sendBulkVerificationNotifications(verificationIds, status);
 
     return NextResponse.json({
-      message: `Successfully ${action.toLowerCase()}d ${result.count} verifications`,
-      updated: result.count
+      message: `Successfully ${action.toLowerCase()}d ${result.rowCount} verifications`,
+      updated: result.rowCount
     });
   } catch (error) {
     console.error("Error in bulk verification action:", error);

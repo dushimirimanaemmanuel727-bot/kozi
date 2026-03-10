@@ -61,7 +61,7 @@ export default function JobCard({ job }: JobCardProps) {
       return;
     }
 
-    if (session.user?.role !== "WORKER") {
+    if (session.user?.role?.toUpperCase() !== "WORKER") {
       console.log("User is not a worker:", session.user.role);
       showNotification("Only workers can apply for jobs", "error");
       return;

@@ -20,6 +20,10 @@ interface Review {
     name: string;
     phone: string;
   };
+  job?: {
+    id: string;
+    title: string;
+  };
 }
 
 export default function Reviews() {
@@ -31,7 +35,13 @@ export default function Reviews() {
   const [filter, setFilter] = useState<"all" | "given" | "received">("all");
 
   useEffect(() => {
-    if (session?.user.role !== "WORKER") {
+    if (!session?.user?.role) {
+      router.push("/auth/signin");
+      return;
+    }
+
+    const userRole = session.user.role.toUpperCase();
+    if (userRole !== "WORKER" && userRole !== "ADMIN" && userRole !== "SUPERADMIN") {
       router.push("/dashboard");
       return;
     }
@@ -57,12 +67,23 @@ export default function Reviews() {
 
   const filteredReviews = reviews.filter(review => {
     if (!session?.user) return false;
+    
+    const userRole = session.user.role.toUpperCase();
+    
+    // Admins and superadmins can see all reviews
+    if (userRole === "ADMIN" || userRole === "SUPERADMIN") {
+      return true;
+    }
+    
+    // Workers can only see their own reviews (given or received)
     if (filter === "given") {
       return review.reviewer.id === session.user.id;
     } else if (filter === "received") {
-      return review.reviewer.id !== session.user.id;
+      return review.reviewee.id === session.user.id;
     }
-    return true;
+    
+    // For workers, "all" means reviews they're involved in
+    return review.reviewer.id === session.user.id || review.reviewee.id === session.user.id;
   });
 
   const renderStars = (rating: number) => {
@@ -90,7 +111,7 @@ export default function Reviews() {
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
     : 0;
 
-  if (!session || session.user.role !== "WORKER") {
+  if (!session || session.user?.role?.toUpperCase() !== "WORKER") {
     return null;
   }
 

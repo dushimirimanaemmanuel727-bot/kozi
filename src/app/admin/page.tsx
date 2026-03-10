@@ -1,98 +1,93 @@
 import { requireAdmin } from "@/lib/admin-middleware";
-import { prisma } from "@/lib/prisma";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
+import { query } from "@/lib/db";
 
 export default async function AdminPage() {
   const session = await requireAdmin();
 
-  // Fetch dashboard statistics
+  // Fetch dashboard statistics using raw SQL
+  const now = new Date();
+  const firstOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const firstOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
   const [
-    totalUsers,
-    totalJobs,
-    totalApplications,
-    pendingVerifications,
-    recentUsers,
-    activeJobs,
-    workers,
-    employers,
-    openJobs,
-    pendingApplications,
-    totalReviews,
+    totalUsersResult,
+    totalJobsResult,
+    totalApplicationsResult,
+    pendingVerificationsResult,
+    recentUsersResult,
+    activeJobsResult,
+    workersCountResult,
+    employersCountResult,
+    openJobsCountResult,
+    pendingApplicationsCountResult,
+    totalReviewsResult,
     avgRatingResult,
     // Previous month data for trends
-    prevMonthUsers,
-    prevMonthJobs,
-    prevMonthApplications,
-    prevMonthVerifications
+    prevMonthUsersResult,
+    prevMonthJobsResult,
+    prevMonthApplicationsResult,
+    prevMonthVerificationsResult
   ] = await Promise.all([
-    // Current data
-    prisma.user.count(),
-    prisma.job.count(),
-    prisma.application.count(),
-    prisma.verification.count({ where: { status: "PENDING" } }),
-    prisma.user.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        role: true,
-        createdAt: true,
-        employerProfile: { select: { organization: true } },
-        workerProfile: { select: { category: true } }
-      }
-    }),
-    prisma.job.findMany({
-      take: 5,
-      where: { status: "OPEN" },
-      orderBy: { createdAt: "desc" },
-      include: {
-        employer: { select: { name: true } },
-        applications: { select: { id: true } }
-      }
-    }),
-    // Get system statistics using separate queries for better compatibility
-    prisma.user.count({ where: { role: 'WORKER' } }),
-    prisma.user.count({ where: { role: 'EMPLOYER' } }),
-    prisma.job.count({ where: { status: 'OPEN' } }),
-    prisma.application.count({ where: { status: 'PENDING' } }),
-    prisma.review.count(),
-    prisma.review.aggregate({ _avg: { rating: true } }),
-    // Previous month data for trend calculations
-    prisma.user.count({
-      where: {
-        createdAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-          lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-        }
-      }
-    }),
-    prisma.job.count({
-      where: {
-        createdAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-          lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-        }
-      }
-    }),
-    prisma.application.count({
-      where: {
-        createdAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-          lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-        }
-      }
-    }),
-    prisma.verification.count({
-      where: {
-        issuedAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-          lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-        }
-      }
-    })
+    query('SELECT COUNT(*) as count FROM "User"'),
+    query('SELECT COUNT(*) as count FROM "Job"'),
+    query('SELECT COUNT(*) as count FROM "Application"'),
+    query('SELECT COUNT(*) as count FROM "Verification" WHERE status = \'PENDING\''),
+    query(`
+      SELECT u.id, u.name, u.phone, u.role, u.createdat, 
+             ep."companyName" as organization, wp.category as category
+      FROM "User" u
+      LEFT JOIN "EmployerProfile" ep ON u.id = ep."userId"
+      LEFT JOIN "WorkerProfile" wp ON u.id = wp."userId"
+      ORDER BY u.createdat DESC LIMIT 5
+    `),
+    query(`
+      SELECT j.id, j.title, j.status, j."createdAt", e.name as employer_name,
+             (SELECT COUNT(*) FROM "Application" a WHERE a."jobId" = j.id) as application_count
+      FROM "Job" j
+      JOIN "User" e ON j."employerId" = e.id
+      WHERE j.status = 'OPEN'
+      ORDER BY j."createdAt" DESC LIMIT 5
+    `),
+    query('SELECT COUNT(*) as count FROM "User" WHERE role = \'WORKER\''),
+    query('SELECT COUNT(*) as count FROM "User" WHERE role = \'EMPLOYER\''),
+    query('SELECT COUNT(*) as count FROM "Job" WHERE status = \'OPEN\''),
+    query('SELECT COUNT(*) as count FROM "Application" WHERE status = \'PENDING\''),
+    query('SELECT COUNT(*) as count FROM "Review"'),
+    query('SELECT AVG(rating) as avg_rating FROM "Review"'),
+    query('SELECT COUNT(*) as count FROM "User" WHERE createdat >= $1 AND createdat < $2', [firstOfPrevMonth, firstOfCurrentMonth]),
+    query('SELECT COUNT(*) as count FROM "Job" WHERE "createdAt" >= $1 AND "createdAt" < $2', [firstOfPrevMonth, firstOfCurrentMonth]),
+    query('SELECT COUNT(*) as count FROM "Application" WHERE "createdAt" >= $1 AND "createdAt" < $2', [firstOfPrevMonth, firstOfCurrentMonth]),
+    query('SELECT COUNT(*) as count FROM "Verification" WHERE "issuedAt" >= $1 AND "issuedAt" < $2', [firstOfPrevMonth, firstOfCurrentMonth])
   ]);
+
+  const totalUsers = parseInt(totalUsersResult.rows[0].count);
+  const totalJobs = parseInt(totalJobsResult.rows[0].count);
+  const totalApplications = parseInt(totalApplicationsResult.rows[0].count);
+  const pendingVerifications = parseInt(pendingVerificationsResult.rows[0].count);
+  const workers = parseInt(workersCountResult.rows[0].count);
+  const employers = parseInt(employersCountResult.rows[0].count);
+  const openJobs = parseInt(openJobsCountResult.rows[0].count);
+  const pendingApplications = parseInt(pendingApplicationsCountResult.rows[0].count);
+  const totalReviews = parseInt(totalReviewsResult.rows[0].count);
+  const avgRating = parseFloat(avgRatingResult.rows[0].avg_rating || 0);
+
+  const prevMonthUsers = parseInt(prevMonthUsersResult.rows[0].count);
+  const prevMonthJobs = parseInt(prevMonthJobsResult.rows[0].count);
+  const prevMonthApplications = parseInt(prevMonthApplicationsResult.rows[0].count);
+  const prevMonthVerifications = parseInt(prevMonthVerificationsResult.rows[0].count);
+
+  const recentUsers = recentUsersResult.rows.map((u: any) => ({
+    ...u,
+    employerProfile: u.organization ? { organization: u.organization } : null,
+    workerProfile: u.category ? { category: u.category } : null
+  }));
+
+  const activeJobs = activeJobsResult.rows.map((j: any) => ({
+    ...j,
+    employer: { name: j.employer_name },
+    applications: new Array(parseInt(j.application_count)).fill({})
+  }));
 
   // Calculate trends
   const calculateTrend = (current: number, previous: number) => {
@@ -119,7 +114,7 @@ export default async function AdminPage() {
         openJobs,
         pendingApplications,
         totalReviews,
-        avgRating: avgRatingResult._avg.rating || 0
+        avgRating: avgRating
       }}
       trends={{
         userTrend,

@@ -18,28 +18,31 @@ export default function ChartContainer({
   loading = false 
 }: ChartContainerProps) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-lg font-bold text-gray-900 tracking-tight">{title}</h3>
           {subtitle && (
-            <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+            <p className="text-sm font-medium text-gray-400 mt-0.5">{subtitle}</p>
           )}
         </div>
         {actions && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             {actions}
           </div>
         )}
       </div>
       
-      {loading ? (
-        <div className="animate-pulse">
-          <div className="h-64 bg-gray-200 rounded-lg"></div>
-        </div>
-      ) : (
-        children
-      )}
+      <div className="p-8">
+        {loading ? (
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-50 rounded-full w-3/4"></div>
+            <div className="h-64 bg-gray-50 rounded-2xl"></div>
+          </div>
+        ) : (
+          children
+        )}
+      </div>
     </div>
   );
 }

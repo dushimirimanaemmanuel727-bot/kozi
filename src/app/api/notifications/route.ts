@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function GET(req: Request) {
   try {
@@ -12,10 +12,8 @@ export async function GET(req: Request) {
     }
 
     // Get user ID from session phone
-    const user = await prisma.user.findUnique({
-      where: { phone: session.user.phone },
-      select: { id: true }
-    });
+    const userResult = await query('SELECT id FROM "User" WHERE phone = $1', [session.user.phone]);
+    const user = userResult.rows[0];
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -25,42 +23,24 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const unreadOnly = searchParams.get("unreadOnly") === "true";
 
-    // Get notifications for the user using Prisma client queries
-    const whereClause: any = {
-      userId: user.id
-    };
-
+    // Get notifications using raw SQL
+    let sql = 'SELECT id, title, message, type, read, "createdAt" FROM "Notification" WHERE "userId" = $1';
+    const params = [user.id];
+    
     if (unreadOnly) {
-      whereClause.read = false;
+      sql += ' AND read = false';
     }
+    
+    sql += ' ORDER BY "createdAt" DESC LIMIT 50';
 
-    const notifications = await prisma.notification.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        title: true,
-        message: true,
-        type: true,
-        read: true,
-        createdAt: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 50
-    });
-
-    // Get unread count
-    const unreadCount = await prisma.notification.count({
-      where: {
-        userId: user.id,
-        read: false
-      }
-    });
+    const [notificationsResult, unreadCountResult] = await Promise.all([
+      query(sql, params),
+      query('SELECT COUNT(*) as count FROM "Notification" WHERE "userId" = $1 AND read = false', [user.id])
+    ]);
 
     return NextResponse.json({
-      notifications,
-      unreadCount
+      notifications: notificationsResult.rows,
+      unreadCount: parseInt(unreadCountResult.rows[0].count)
     });
 
   } catch (error) {
@@ -84,46 +64,22 @@ export async function POST(req: Request) {
     const { notificationId, markAllAsRead } = body;
 
     // Get user ID from session phone
-    const user = await prisma.user.findUnique({
-      where: { phone: session.user.phone },
-      select: { id: true }
-    });
+    const userResult = await query('SELECT id FROM "User" WHERE phone = $1', [session.user.phone]);
+    const user = userResult.rows[0];
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    let result;
-
     if (markAllAsRead) {
-      // Mark all notifications as read for this user
-      result = await prisma.notification.updateMany({
-        where: {
-          userId: user.id,
-          read: false
-        },
-        data: {
-          read: true
-        }
-      });
+      await query('UPDATE "Notification" SET read = true WHERE "userId" = $1 AND read = false', [user.id]);
+    } else if (notificationId) {
+      await query('UPDATE "Notification" SET read = true WHERE id = $1 AND "userId" = $2', [notificationId, user.id]);
     } else {
-      // Mark specific notification as read
-      if (!notificationId) {
-        return NextResponse.json({ error: "Notification ID is required" }, { status: 400 });
-      }
-
-      result = await prisma.notification.updateMany({
-        where: {
-          id: notificationId,
-          userId: user.id
-        },
-        data: {
-          read: true
-        }
-      });
+      return NextResponse.json({ error: "Either notificationId or markAllAsRead is required" }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, updated: true });
+    return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error("Mark notification read error:", error);

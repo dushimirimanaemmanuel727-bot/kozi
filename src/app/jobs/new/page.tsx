@@ -1,14 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { useToast } from "@/components/ui/toast";
-import { useRouter } from "next/navigation";
 
 export default function NewJobPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: session } = useSession();
   const { success, error } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    if (session && session.user?.role?.toLowerCase() !== "employer") {
+      error("Only employers can post jobs");
+      router.push("/dashboard");
+    }
+  }, [session, router, error]);
+
+  if (!session) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="text-center">
+            <p>Please sign in to post a job.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (session.user?.role?.toLowerCase() !== "employer") {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="text-center">
+            <p className="text-red-600">Only employers can post jobs.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   async function createJob(formData: FormData) {
     setIsSubmitting(true);
@@ -20,7 +53,10 @@ export default function NewJobPage() {
         description: formData.get("description"),
         budget: formData.get("budget"),
         district: formData.get("district"),
+        deadline: formData.get("deadline"),
       };
+      
+      console.log('Submitting job data:', body);
       
       const response = await fetch("/api/jobs", {
         method: "POST",
@@ -29,12 +65,25 @@ export default function NewJobPage() {
         cache: "no-store",
       });
 
+      console.log('Job creation response:', response.status, response.statusText);
+      
       if (response.ok) {
+        const result = await response.json();
+        console.log('Job creation result:', result);
         success("Job posted successfully! Your job is now visible to workers.");
         // Redirect to my jobs page
         router.push("/jobs/my-jobs");
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        const errorText = await response.text();
+        console.error('Job creation response status:', response.status, response.statusText);
+        console.error('Job creation response text:', errorText);
+        let errorData: { error?: string } = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          console.error('Failed to parse error response as JSON:', e);
+        }
+        console.error('Job creation error:', errorData);
         error(errorData.error || "Failed to post job. Please check your information and try again.");
       }
     } catch (err) {

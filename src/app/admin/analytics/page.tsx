@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin-middleware";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { AdminAnalytics } from "@/components/admin/admin-analytics";
 
 export default async function AnalyticsPage() {
@@ -17,12 +17,12 @@ export default async function AnalyticsPage() {
     systemMetrics
   ] = await Promise.all([
     // User growth over last 6 months - group by month
-    prisma.$queryRaw<any[]>`
+    query`
       SELECT 
         DATE_TRUNC('month', "createdAt") as month,
         COUNT(*) as users,
-        COUNT(CASE WHEN role = 'WORKER' THEN 1 END) as workers,
-        COUNT(CASE WHEN role = 'EMPLOYER' THEN 1 END) as employers
+        COUNT(CASE WHEN role = 'worker' THEN 1 END) as workers,
+        COUNT(CASE WHEN role = 'employer' THEN 1 END) as employers
       FROM "User" 
       WHERE "createdAt" >= NOW() - INTERVAL '6 months'
       GROUP BY DATE_TRUNC('month', "createdAt")
@@ -30,12 +30,12 @@ export default async function AnalyticsPage() {
     `,
     
     // Job statistics by month
-    prisma.$queryRaw<any[]>`
+    query`
       SELECT 
         DATE_TRUNC('month', "createdAt") as month,
         COUNT(*) as posted,
-        COUNT(CASE WHEN status = 'OPEN' THEN 1 END) as open,
-        COUNT(CASE WHEN status = 'CLOSED' THEN 1 END) as closed
+        COUNT(CASE WHEN status = 'active' THEN 1 END) as open,
+        COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed
       FROM "Job" 
       WHERE "createdAt" >= NOW() - INTERVAL '6 months'
       GROUP BY DATE_TRUNC('month', "createdAt")
@@ -43,13 +43,13 @@ export default async function AnalyticsPage() {
     `,
     
     // Application trends by month
-    prisma.$queryRaw<any[]>`
+    query`
       SELECT 
         DATE_TRUNC('month', "createdAt") as month,
         COUNT(*) as applications,
-        COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending,
-        COUNT(CASE WHEN status = 'ACCEPTED' THEN 1 END) as accepted,
-        COUNT(CASE WHEN status = 'REJECTED' THEN 1 END) as rejected
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
       FROM "Application" 
       WHERE "createdAt" >= NOW() - INTERVAL '6 months'
       GROUP BY DATE_TRUNC('month', "createdAt")
@@ -57,14 +57,17 @@ export default async function AnalyticsPage() {
     `,
     
     // Job categories distribution
-    prisma.job.groupBy({
-      by: ['category'],
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } }
-    }),
+    query`
+      SELECT 
+        category,
+        COUNT(*) as _count
+      FROM "Job"
+      GROUP BY category
+      ORDER BY _count DESC
+    `,
     
     // District distribution
-    prisma.$queryRaw<any[]>`
+    query`
       SELECT 
         district,
         COUNT(*) as count
@@ -76,7 +79,7 @@ export default async function AnalyticsPage() {
     `,
     
     // Monthly revenue estimation from job budgets
-    prisma.$queryRaw<any[]>`
+    query`
       SELECT 
         DATE_TRUNC('month', "createdAt") as month,
         COALESCE(SUM(budget), 0) as estimated_revenue
@@ -88,7 +91,7 @@ export default async function AnalyticsPage() {
     `,
     
     // User activity - last 30 days grouped by day
-    prisma.$queryRaw<any[]>`
+    query`
       SELECT 
         DATE_TRUNC('day', "createdAt") as day,
         COUNT(*) as new_users
@@ -100,32 +103,20 @@ export default async function AnalyticsPage() {
     
     // System metrics using separate queries
     Promise.all([
-      prisma.user.count(),
-      prisma.job.count(),
-      prisma.application.count(),
-      prisma.review.count(),
-      prisma.review.aggregate({ _avg: { rating: true } }),
-      prisma.verification.count({ where: { status: 'PENDING' } }),
-      prisma.user.count({ 
-        where: { 
-          createdAt: { 
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) 
-          } 
-        } 
-      }),
-      prisma.job.count({ 
-        where: { 
-          createdAt: { 
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) 
-          } 
-        } 
-      })
-    ]).then(([totalUsers, totalJobs, totalApplications, totalReviews, avgRatingResult, pendingVerifications, newUsersWeek, newJobsWeek]) => ({
+      query('SELECT COUNT(*) as count FROM "User"').then(r => parseInt(r.rows[0].count)),
+      query('SELECT COUNT(*) as count FROM "Job"').then(r => parseInt(r.rows[0].count)),
+      query('SELECT COUNT(*) as count FROM "Application"').then(r => parseInt(r.rows[0].count)),
+      query('SELECT COUNT(*) as count FROM "Review"').then(r => parseInt(r.rows[0].count)),
+      query('SELECT COALESCE(AVG(rating), 0) as avg_rating FROM "Review"').then(r => parseFloat(r.rows[0].avg_rating)),
+      query('SELECT COUNT(*) as count FROM "Verification" WHERE status = $1', ['PENDING']).then(r => parseInt(r.rows[0].count)),
+      query('SELECT COUNT(*) as count FROM "User" WHERE "createdAt" >= NOW() - INTERVAL \'7 days\'').then(r => parseInt(r.rows[0].count)),
+      query('SELECT COUNT(*) as count FROM "Job" WHERE "createdAt" >= NOW() - INTERVAL \'7 days\'').then(r => parseInt(r.rows[0].count))
+    ]).then(([totalUsers, totalJobs, totalApplications, totalReviews, avgRating, pendingVerifications, newUsersWeek, newJobsWeek]) => ({
       totalUsers,
       totalJobs,
       totalApplications,
       totalReviews,
-      avgRating: avgRatingResult._avg.rating || 0,
+      avgRating: avgRating || 0,
       pendingVerifications,
       newUsersThisWeek: newUsersWeek,
       newJobsThisWeek: newJobsWeek

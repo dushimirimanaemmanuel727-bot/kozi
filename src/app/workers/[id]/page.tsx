@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import Link from "next/link";
+import { query } from "@/lib/db";
 
 interface PageProps {
   params: { id: string };
@@ -12,48 +12,53 @@ export default async function WorkerProfilePage({ params }: PageProps) {
   const { id } = await params;
   console.log("Profile page - received ID:", id);
   
-  const workerProfile = await prisma.workerProfile.findUnique({
-    where: { id: id },
-    include: {
-      user: {
-        select: { 
-          id: true, 
-          name: true, 
-          phone: true, 
-          district: true, 
-          languages: true,
-          role: true
-        },
-      },
-    },
-  });
+  const workerProfileResult = await query(
+    `SELECT wp.*, u.id as user_id, u.name as user_name, u.phone as user_phone, 
+            u.district as user_district, u.languages as user_languages, u.role as user_role
+     FROM "WorkerProfile" wp
+     JOIN "User" u ON wp."userId" = u.id
+     WHERE wp.id = $1`,
+    [id]
+  );
+  const workerProfileRow = workerProfileResult.rows[0];
 
-  // Get reviews separately
-  const reviews = await prisma.review.findMany({
-    where: { revieweeId: workerProfile?.userId },
-    include: {
-      reviewer: {
-        select: { name: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
-
-  if (!workerProfile || !workerProfile.user) {
+  if (!workerProfileRow) {
     notFound();
   }
 
+  const workerProfile = {
+    ...workerProfileRow,
+    user: {
+      id: workerProfileRow.user_id,
+      name: workerProfileRow.user_name,
+      phone: workerProfileRow.user_phone,
+      district: workerProfileRow.user_district,
+      languages: workerProfileRow.user_languages,
+      role: workerProfileRow.user_role
+    }
+  };
+
+  // Get reviews separately
+  const reviewsResult = await query(
+    `SELECT r.*, u.name as reviewer_name
+     FROM "Review" r
+     JOIN "User" u ON r."reviewerId" = u.id
+     WHERE r."revieweeId" = $1
+     ORDER BY r."createdAt" DESC
+     LIMIT 10`,
+    [workerProfile.userId]
+  );
+  const reviews = reviewsResult.rows.map((r: any) => ({
+    ...r,
+    reviewer: { name: r.reviewer_name }
+  }));
+
   // Track profile view (simplified for now - just increment view count)
   try {
-    await prisma.workerProfile.update({
-      where: { id: workerProfile.id },
-      data: {
-        reviewCount: {
-          increment: 1
-        }
-      }
-    });
+    await query(
+      'UPDATE "WorkerProfile" SET "reviewCount" = "reviewCount" + 1 WHERE id = $1',
+      [id]
+    );
   } catch (error) {
     console.error("Failed to track profile view:", error);
     // Don't fail the page if view tracking fails

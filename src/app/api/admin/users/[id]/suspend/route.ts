@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { query } from "@/lib/db";
 
 // POST suspend/unsuspend user
 export async function POST(
@@ -16,41 +16,53 @@ export async function POST(
     const body = await request.json();
     const { suspended, reason } = body;
 
-    // Only SUPERADMIN can suspend users
-    if (session.user.role !== "SUPERADMIN") {
+    // Only superadmin can suspend users
+    if (session.user.role?.toLowerCase() !== "superadmin") {
       return NextResponse.json(
-        { error: "Only SUPERADMIN can suspend users" },
+        { error: "Only superadmin can suspend users" },
         { status: 403 }
       );
     }
 
     // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { id }
-    });
+    const userResult = await query(
+      'SELECT * FROM "User" WHERE id = $1',
+      [id]
+    );
+    
+    const user = userResult.rows[0];
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Prevent suspension of SUPERADMIN users
-    if (user.role === "SUPERADMIN") {
+    // Prevent suspension of superadmin users
+    if (user.role?.toLowerCase() === "superadmin") {
       return NextResponse.json(
-        { error: "Cannot suspend SUPERADMIN users" },
+        { error: "Cannot suspend superadmin users" },
         { status: 403 }
       );
     }
 
     // Update user suspension status
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: {
-        suspended: suspended,
-        suspensionReason: suspended ? reason : null,
-        suspendedAt: suspended ? new Date() : null,
-        suspendedBy: suspended ? session.user.id : null
-      } as any
-    });
+    const updatedUserResult = await query(
+      `UPDATE "User" 
+       SET "suspended" = $1, 
+           "suspensionReason" = $2, 
+           "suspendedAt" = $3, 
+           "suspendedBy" = $4 
+       WHERE id = $5 
+       RETURNING *`,
+      [
+        suspended,
+        suspended ? reason : null,
+        suspended ? new Date() : null,
+        suspended ? session.user.id : null,
+        id
+      ]
+    );
+    
+    const updatedUser = updatedUserResult.rows[0];
 
     return NextResponse.json({ 
       message: suspended ? "User suspended successfully" : "User unsuspended successfully",

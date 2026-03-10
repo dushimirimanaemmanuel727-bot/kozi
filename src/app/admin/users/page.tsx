@@ -1,60 +1,70 @@
 import { requireAdmin } from "@/lib/admin-middleware";
-import { prisma } from "@/lib/prisma";
 import { UserManagement } from "@/components/admin/user-management";
+import { query } from "@/lib/db";
+import { User } from "@/lib/user-service";
+
+// Type for the database query result with joined profile data
+type UserWithProfiles = User & {
+  employerProfile_companyName?: string;
+  workerProfile_category?: string;
+  workerProfile_experienceYears?: number;
+  workerProfile_rating?: number;
+  workerProfile_reviewCount?: number;
+  workerProfile_minMonthlyPay?: number;
+  jobsPosted_count: number;
+  applications_count: number;
+};
 
 export default async function UsersPage() {
   const session = await requireAdmin();
 
   // Fetch users with their profiles
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      employerProfile: {
-        select: { organization: true }
-      },
-      workerProfile: {
-        select: { 
-          category: true, 
-          experienceYears: true, 
-          rating: true,
-          reviewCount: true,
-          minMonthlyPay: true
-        }
-      },
-      jobsPosted: {
-        select: { id: true },
-        take: 1
-      },
-      applications: {
-        select: { id: true },
-        take: 1
-      }
-    }
-  });
+  const usersResult = await query(`
+    SELECT 
+      u.*,
+      ep."companyName" as "employerProfile_companyName",
+      wp.category as "workerProfile_category",
+      wp."experienceYears" as "workerProfile_experienceYears", 
+      wp.rating as "workerProfile_rating",
+      wp."reviewCount" as "workerProfile_reviewCount",
+      wp."minMonthlyPay" as "workerProfile_minMonthlyPay",
+      (SELECT COUNT(*) FROM "Job" WHERE "employerId" = u.id LIMIT 1) as "jobsPosted_count",
+      (SELECT COUNT(*) FROM "Application" WHERE "workerId" = u.id LIMIT 1) as "applications_count"
+    FROM "User" u
+    LEFT JOIN "EmployerProfile" ep ON u.id = ep."userId"
+    LEFT JOIN "WorkerProfile" wp ON u.id = wp."userId"
+    ORDER BY u.createdat DESC
+  `);
 
   // Convert Decimal objects to plain numbers for serialization
-  const serializedUsers = users.map(user => ({
+  const serializedUsers = usersResult.rows.map((user: UserWithProfiles) => ({
     ...user,
-    workerProfile: user.workerProfile ? {
-      ...user.workerProfile,
-      minMonthlyPay: user.workerProfile.minMonthlyPay ? Number(user.workerProfile.minMonthlyPay) : null
-    } : null
+    employerProfile: user.employerProfile_companyName ? { companyName: user.employerProfile_companyName } : null,
+    workerProfile: user.workerProfile_category ? {
+      category: user.workerProfile_category,
+      experienceYears: user.workerProfile_experienceYears,
+      rating: user.workerProfile_rating,
+      reviewCount: user.workerProfile_reviewCount,
+      minMonthlyPay: user.workerProfile_minMonthlyPay ? Number(user.workerProfile_minMonthlyPay) : null
+    } : null,
+    jobsPosted: user.jobsPosted_count > 0 ? [{ id: 1 }] : [],
+    applications: user.applications_count > 0 ? [{ id: 1 }] : []
   }));
 
   // Get user statistics
-  const userStats = await prisma.$queryRaw`
+  const userStatsResult = await query(`
     SELECT 
       role,
       COUNT(*) as count,
-      AVG(CASE WHEN role = 'WORKER' THEN 
+      AVG(CASE WHEN role = 'worker' THEN 
         (SELECT "experienceYears" FROM "WorkerProfile" WHERE "userId" = "User".id) 
       END) as avg_experience
     FROM "User" 
     GROUP BY role
-  ` as any[];
+  `);
 
   // Convert Decimal objects to plain numbers
-  const serializedStats = userStats.map(stat => ({
+  const serializedStats = userStatsResult.rows.map((stat: any) => ({
     ...stat,
     avg_experience: stat.avg_experience ? Number(stat.avg_experience) : null
   }));

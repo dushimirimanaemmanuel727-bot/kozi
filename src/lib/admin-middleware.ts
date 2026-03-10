@@ -9,7 +9,7 @@ export async function requireAdmin() {
     redirect("/auth/signin");
   }
   
-  if (session.user?.role !== "ADMIN" && session.user?.role !== "SUPERADMIN") {
+  if (session.user?.role?.toLowerCase() !== "admin" && session.user?.role?.toLowerCase() !== "superadmin") {
     redirect("/unauthorized");
   }
   
@@ -23,7 +23,7 @@ export async function requireSuperAdmin() {
     redirect("/auth/signin");
   }
   
-  if (session.user?.role !== "SUPERADMIN") {
+  if (session.user?.role?.toLowerCase() !== "superadmin") {
     redirect("/unauthorized");
   }
   
@@ -31,9 +31,10 @@ export async function requireSuperAdmin() {
 }
 
 export function isAdmin(role?: string): boolean {
-  return role === "ADMIN" || role === "SUPERADMIN";
+  const roleLower = role?.toLowerCase();
+  return roleLower === "admin" || roleLower === "superadmin";
 }
 
 export function isSuperAdmin(role?: string): boolean {
-  return role === "SUPERADMIN";
+  return role?.toLowerCase() === "superadmin";
 }

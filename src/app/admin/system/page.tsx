@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin-middleware";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import { SystemMonitoring } from "@/components/admin/system-monitoring";
 
 export default async function SystemPage() {
@@ -18,47 +18,63 @@ export default async function SystemPage() {
     errorLogs
   ] = await Promise.all([
     // User statistics
-    prisma.user.groupBy({
-      by: ['role'],
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } }
-    }),
+    query`
+      SELECT 
+        role,
+        COUNT(*) as _count
+      FROM "User"
+      GROUP BY role
+      ORDER BY _count DESC
+    `,
     
     // Job statistics by status
-    prisma.job.groupBy({
-      by: ['status'],
-      _count: { id: true },
-      _avg: { budget: true }
-    }),
+    query`
+      SELECT 
+        status,
+        COUNT(*) as _count,
+        COALESCE(AVG(budget), 0) as _avg_budget
+      FROM "Job"
+      GROUP BY status
+    `,
     
     // Application statistics by status
-    prisma.application.groupBy({
-      by: ['status'],
-      _count: { id: true }
-    }),
+    query`
+      SELECT 
+        status,
+        COUNT(*) as _count
+      FROM "Application"
+      GROUP BY status
+    `,
     
     // Verification statistics
-    prisma.verification.groupBy({
-      by: ['status'],
-      _count: { id: true }
-    }),
+    query`
+      SELECT 
+        status,
+        COUNT(*) as _count
+      FROM "Verification"
+      GROUP BY status
+    `,
     
     // Review statistics
-    prisma.review.aggregate({
-      _count: { id: true },
-      _avg: { rating: true },
-      _min: { rating: true },
-      _max: { rating: true }
-    }),
+    query('SELECT COUNT(*) as _count, COALESCE(AVG(rating), 0) as _avg_rating, COALESCE(MIN(rating), 0) as _min_rating, COALESCE(MAX(rating), 0) as _max_rating FROM "Review"')
+      .then(r => ({
+        _count: { id: parseInt(r.rows[0]._count) },
+        _avg: { rating: parseFloat(r.rows[0]._avg_rating) },
+        _min: { rating: parseFloat(r.rows[0]._min_rating) },
+        _max: { rating: parseFloat(r.rows[0]._max_rating) }
+      })),
     
     // Notification statistics
-    prisma.notification.groupBy({
-      by: ['read'],
-      _count: { id: true }
-    }),
+    query`
+      SELECT 
+        read,
+        COUNT(*) as _count
+      FROM "Notification"
+      GROUP BY read
+    `,
     
     // System health metrics
-    prisma.$queryRaw`
+    query`
       SELECT 
         (SELECT COUNT(*) FROM "User" WHERE "createdAt" >= NOW() - INTERVAL '24 hours') as new_users_today,
         (SELECT COUNT(*) FROM "Job" WHERE "createdAt" >= NOW() - INTERVAL '24 hours') as new_jobs_today,
@@ -72,7 +88,7 @@ export default async function SystemPage() {
     `,
     
     // Recent system activity
-    prisma.$queryRaw<any[]>`
+    query`
       SELECT 
         'USER_CREATED' as type,
         u.name,

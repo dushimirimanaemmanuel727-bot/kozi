@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -11,67 +11,37 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "WORKER") {
+    if (session.user.role !== "worker") {
       return NextResponse.json({ error: "Only workers can access these stats" }, { status: 403 });
     }
 
     // Get worker user ID
-    const worker = await prisma.user.findUnique({
-      where: { phone: session.user.phone },
-      select: { id: true }
-    });
+    const workerResult = await query('SELECT id FROM "User" WHERE phone = $1', [session.user.phone]);
+    const worker = workerResult.rows[0];
 
     if (!worker) {
       return NextResponse.json({ error: "Worker not found" }, { status: 404 });
     }
 
-    // Get total applications count
-    const totalApplications = await prisma.application.count({
-      where: {
-        workerId: worker.id
-      }
-    });
-
-    // Get pending applications count
-    const pendingApplications = await prisma.application.count({
-      where: {
-        workerId: worker.id,
-        status: "PENDING"
-      }
-    });
-
-    // Get accepted applications count (jobs hired)
-    const acceptedApplications = await prisma.application.count({
-      where: {
-        workerId: worker.id,
-        status: "ACCEPTED"
-      }
-    });
-
-    // Get rejected applications count
-    const rejectedApplications = await prisma.application.count({
-      where: {
-        workerId: worker.id,
-        status: "REJECTED"
-      }
-    });
+    // Get applications counts using raw SQL
+    const countsResult = await query(
+      `SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'pending') as pending,
+        COUNT(*) FILTER (WHERE status = 'accepted') as accepted,
+        COUNT(*) FILTER (WHERE status = 'rejected') as rejected
+       FROM "Application" WHERE "workerId" = $1`,
+      [worker.id]
+    );
+    const counts = countsResult.rows[0];
 
     // Get profile completion percentage
-    const workerProfile = await prisma.workerProfile.findUnique({
-      where: {
-        userId: worker.id
-      },
-      select: {
-        category: true,
-        skills: true,
-        experienceYears: true,
-        availability: true,
-        minMonthlyPay: true,
-        bio: true,
-        photoUrl: true,
-        nationalId: true
-      }
-    });
+    const profileResult = await query(
+      `SELECT category, skills, "experienceYears", availability, "minMonthlyPay", bio, "photoUrl", "nationalId"
+       FROM "WorkerProfile" WHERE "userId" = $1`,
+      [worker.id]
+    );
+    const workerProfile = profileResult.rows[0];
 
     let profileCompletion = 0;
     if (workerProfile) {
@@ -88,10 +58,10 @@ export async function GET() {
     }
 
     return NextResponse.json({
-      totalApplications,
-      pendingApplications,
-      acceptedApplications,
-      rejectedApplications,
+      totalApplications: parseInt(counts.total),
+      pendingApplications: parseInt(counts.pending),
+      acceptedApplications: parseInt(counts.accepted),
+      rejectedApplications: parseInt(counts.rejected),
       profileCompletion
     });
 

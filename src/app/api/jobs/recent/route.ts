@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function GET(req: Request) {
   try {
@@ -9,37 +9,40 @@ export async function GET(req: Request) {
     console.log("Fetching recent jobs with limit:", limit);
 
     // Get recent open jobs with employer information
-    const recentJobs = await prisma.job.findMany({
-      where: {
-        status: 'OPEN'
-      },
-      include: {
-        employer: {
-          include: {
-            employerProfile: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: limit
-    });
+    const recentJobsResult = await query(`
+      SELECT 
+        j.id,
+        j.title,
+        j.category,
+        j.description,
+        j.budget,
+        j.district,
+        j."createdAt",
+        j.deadline,
+        u.name as employer_name,
+        ep.organization as organization_name
+      FROM "Job" j
+      LEFT JOIN "User" u ON j."employerId" = u.id
+      LEFT JOIN "EmployerProfile" ep ON u.id = ep."userId"
+      WHERE j.status = 'active'
+      ORDER BY j."createdAt" DESC
+      LIMIT $1
+    `, [limit]);
 
-    console.log("Found jobs:", recentJobs.length);
+    console.log("Found jobs:", recentJobsResult.rows.length);
 
     // Format the jobs data and convert Decimal to number
-    const formattedJobs = recentJobs.map((job) => ({
+    const formattedJobs = recentJobsResult.rows.map((job: any) => ({
       id: job.id,
       title: job.title,
       category: job.category,
       description: job.description,
       budget: job.budget ? Number(job.budget) : null,
       district: job.district,
-      createdAt: job.createdAt.toISOString(),
-      deadline: job.deadline ? job.deadline.toISOString() : null,
-      employerName: job.employer.name || "Anonymous Employer",
-      organizationName: job.employer.employerProfile?.organization
+      createdAt: job.createdAt ? new Date(job.createdAt).toISOString() : new Date().toISOString(),
+      deadline: job.deadline ? new Date(job.deadline).toISOString() : null,
+      employerName: job.employer_name || "Anonymous Employer",
+      organizationName: job.organization_name
     }));
 
     console.log("Formatted jobs:", formattedJobs.length);

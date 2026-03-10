@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { query } from "@/lib/db";
 
 // GET all users (admin only)
 export async function GET(request: NextRequest) {
@@ -13,28 +13,20 @@ export async function GET(request: NextRequest) {
     
     // Check if export is requested
     if (searchParams.get('export') === 'true') {
-      const users = await prisma.user.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-          employerProfile: true,
-          workerProfile: true
-        }
-      });
-
-      // Convert Decimal objects to plain numbers for serialization
-      const serializedUsers = users.map(user => ({
-        ...user,
-        workerProfile: user.workerProfile ? {
-          ...user.workerProfile,
-          minMonthlyPay: user.workerProfile.minMonthlyPay ? Number(user.workerProfile.minMonthlyPay) : null
-        } : null
-      }));
+      const usersResult = await query(
+        `SELECT u.*, ep.organization, wp.category, wp."experienceYears", wp.rating, wp."reviewCount", wp."minMonthlyPay"
+         FROM "User" u
+         LEFT JOIN "EmployerProfile" ep ON u.id = ep."userId"
+         LEFT JOIN "WorkerProfile" wp ON u.id = wp."userId"
+         ORDER BY u."createdAt" DESC`
+      );
+      const users = usersResult.rows;
 
       // Create CSV content
       const headers = ['ID', 'Name', 'Phone', 'Email', 'Role', 'District', 'Languages', 'Created At'];
       const csvContent = [
         headers.join(','),
-        ...serializedUsers.map(user => [
+        ...users.map((user: any) => [
           user.id,
           user.name,
           user.phone,
@@ -42,7 +34,7 @@ export async function GET(request: NextRequest) {
           user.role,
           user.district || '',
           user.languages || '',
-          user.createdAt.toISOString()
+          user.createdAt ? new Date(user.createdAt).toISOString() : ''
         ].join(','))
       ].join('\n');
 
@@ -59,54 +51,62 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || '';
     
-    // Build where clause
-    const where: any = {};
-    
+    let whereClause = 'WHERE 1=1';
+    const params: any[] = [];
+    let paramIndex = 1;
+
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } }
-      ];
+      whereClause += ` AND (name ILIKE $${paramIndex} OR phone ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
     }
     
     if (role && role !== 'ALL') {
-      where.role = role;
+      whereClause += ` AND role = $${paramIndex}`;
+      params.push(role);
+      paramIndex++;
     }
     
+    const offset = (page - 1) * limit;
+
     // Fetch users with pagination
-    const [users, totalCount] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          employerProfile: {
-            select: { organization: true }
-          },
-          workerProfile: {
-            select: { 
-              category: true, 
-              experienceYears: true, 
-              rating: true,
-              reviewCount: true,
-              minMonthlyPay: true
-            }
-          },
-          _count: {
-            select: {
-              jobsPosted: true,
-              applications: true
-            }
-          }
-        }
-      }),
-      prisma.user.count({ where })
+    const [usersResult, totalCountResult] = await Promise.all([
+      query(
+        `SELECT u.*, ep.organization, 
+                wp.category, wp."experienceYears", wp.rating, wp."reviewCount", wp."minMonthlyPay",
+                (SELECT COUNT(*) FROM "Job" j WHERE j."employerId" = u.id) as jobs_posted_count,
+                (SELECT COUNT(*) FROM "Application" a WHERE a."workerId" = u.id) as applications_count
+         FROM "User" u
+         LEFT JOIN "EmployerProfile" ep ON u.id = ep."userId"
+         LEFT JOIN "WorkerProfile" wp ON u.id = wp."userId"
+         ${whereClause}
+         ORDER BY u."createdAt" DESC
+         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+        [...params, limit, offset]
+      ),
+      query(`SELECT COUNT(*) as count FROM "User" u ${whereClause}`, params)
     ]);
     
+    const users = usersResult.rows.map((user: any) => ({
+      ...user,
+      employerProfile: user.organization ? { organization: user.organization } : null,
+      workerProfile: user.category ? { 
+        category: user.category, 
+        experienceYears: user.experienceYears, 
+        rating: user.rating,
+        reviewCount: user.reviewCount,
+        minMonthlyPay: user.minMonthlyPay ? Number(user.minMonthlyPay) : null
+      } : null,
+      _count: {
+        jobsPosted: parseInt(user.jobs_posted_count),
+        applications: parseInt(user.applications_count)
+      }
+    }));
+    
+    const totalCount = parseInt(totalCountResult.rows[0].count);
+    
     // Convert Decimal objects to plain numbers for serialization
-    const serializedUsers = users.map(user => ({
+    const serializedUsers = users.map((user: any) => ({
       ...user,
       workerProfile: user.workerProfile ? {
         ...user.workerProfile,

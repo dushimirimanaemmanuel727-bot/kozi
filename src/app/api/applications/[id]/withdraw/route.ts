@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 export async function POST(
   req: NextRequest,
@@ -14,33 +14,29 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "WORKER") {
+    if (session.user.role?.toUpperCase() !== "WORKER") {
       return NextResponse.json({ error: "Only workers can withdraw applications" }, { status: 403 });
     }
 
     const { id: applicationId } = await params;
 
     // Get the worker user ID
-    const worker = await prisma.user.findUnique({
-      where: { phone: session.user.phone },
-      select: { id: true }
-    });
+    const workerResult = await query('SELECT id FROM "User" WHERE phone = $1', [session.user.phone]);
+    const worker = workerResult.rows[0];
 
     if (!worker) {
       return NextResponse.json({ error: "Worker not found" }, { status: 404 });
     }
 
     // Find the application and verify it belongs to this worker
-    const application = await prisma.application.findUnique({
-      where: { id: applicationId },
-      include: {
-        job: {
-          select: {
-            status: true
-          }
-        }
-      }
-    });
+    const applicationResult = await query(`
+      SELECT a.id, a.status, a."workerId", j.status as job_status
+      FROM "Application" a
+      JOIN "Job" j ON a."jobId" = j.id
+      WHERE a.id = $1
+    `, [applicationId]);
+    
+    const application = applicationResult.rows[0];
 
     if (!application) {
       return NextResponse.json({ error: "Application not found" }, { status: 404 });
@@ -58,16 +54,14 @@ export async function POST(
     }
 
     // Check if the job is still open
-    if (application.job.status !== "OPEN") {
+    if (application.job_status !== "ACTIVE") {
       return NextResponse.json({ 
         error: "Cannot withdraw application for a closed job" 
       }, { status: 400 });
     }
 
     // Delete the application
-    await prisma.application.delete({
-      where: { id: applicationId }
-    });
+    await query('DELETE FROM "Application" WHERE id = $1', [applicationId]);
 
     return NextResponse.json({ 
       message: "Application withdrawn successfully" 

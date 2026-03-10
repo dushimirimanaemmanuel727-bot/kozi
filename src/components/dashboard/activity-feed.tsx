@@ -24,40 +24,40 @@ const getActivityIcon = (type: ActivityItem["type"]) => {
   switch (type) {
     case "application":
       return (
-        <div className="p-2 bg-blue-100 rounded-full">
-          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="p-3 bg-blue-50 rounded-2xl">
+          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
         </div>
       );
     case "job_posted":
       return (
-        <div className="p-2 bg-green-100 rounded-full">
-          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="p-3 bg-green-50 rounded-2xl">
+          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </div>
       );
     case "hired":
       return (
-        <div className="p-2 bg-purple-100 rounded-full">
-          <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="p-3 bg-purple-50 rounded-2xl">
+          <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
       );
     case "review":
       return (
-        <div className="p-2 bg-yellow-100 rounded-full">
-          <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="p-3 bg-yellow-50 rounded-2xl">
+          <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.69.69l4.338.632c.925.134 1.294 1.27.624 1.921l-3.138 3.058a1 1 0 00-.286.894l.739 4.322c.165.962-.868 1.696-1.757 1.242l-3.881-2.041a1 1 0 00-.928 0l-3.881 2.041c-.889.454-1.922-.28-1.757-1.242l.739-4.322a1 1 0 00-.286-.894l-3.138-3.058c-.67-.651-.301-1.787.624-1.921l4.338-.632a1 1 0 00.69-.69l1.519-4.674z" />
           </svg>
         </div>
       );
     default:
       return (
-        <div className="p-2 bg-gray-100 rounded-full">
-          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="p-3 bg-gray-50 rounded-2xl">
+          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
@@ -67,15 +67,15 @@ const getActivityIcon = (type: ActivityItem["type"]) => {
 
 const getStatusBadge = (status: string) => {
   const statusStyles = {
-    PENDING: "bg-yellow-100 text-yellow-800",
-    ACCEPTED: "bg-green-100 text-green-800",
-    REJECTED: "bg-red-100 text-red-800",
-    OPEN: "bg-blue-100 text-blue-800",
-    CLOSED: "bg-gray-100 text-gray-800"
+    PENDING: "bg-orange-50 text-orange-700",
+    ACCEPTED: "bg-green-50 text-green-700",
+    REJECTED: "bg-red-50 text-red-700",
+    OPEN: "bg-blue-50 text-blue-700",
+    CLOSED: "bg-gray-50 text-gray-700"
   };
 
   return (
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[status as keyof typeof statusStyles] || "bg-gray-100 text-gray-800"}`}>
+    <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full ${statusStyles[status as keyof typeof statusStyles] || "bg-gray-50 text-gray-700"}`}>
       {status}
     </span>
   );

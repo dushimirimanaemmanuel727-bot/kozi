@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import JobCard from "@/components/jobs/job-card";
 import Link from "next/link";
@@ -18,21 +18,17 @@ export default async function MyJobsPage() {
     redirect("/jobs");
   }
 
-  const jobs = await prisma.job.findMany({
-    where: {
-      employerId: session.user.id,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    include: {
-      applications: {
-        select: {
-          id: true,
-        },
-      },
-    },
-  });
+  // Get employer's jobs
+  const jobsResult = await query(
+    `SELECT j.*, COUNT(a.id) as application_count 
+     FROM "Job" j 
+     LEFT JOIN "Application" a ON j.id = a."jobId" 
+     WHERE j."employerId" = $1 
+     GROUP BY j.id 
+     ORDER BY j."createdAt" DESC`,
+    [session.user.id]
+  );
+  const jobs = jobsResult.rows;
 
   return (
     <DashboardLayout>
@@ -81,7 +77,7 @@ export default async function MyJobsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {jobs.map((job) => (
+            {jobs.map((job: any) => (
               <div key={job.id} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow">
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
@@ -89,9 +85,9 @@ export default async function MyJobsPage() {
                       {job.title}
                     </h3>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      job.status === 'ACTIVE' 
+                      job.status === 'active' 
                         ? 'bg-green-100 text-green-800'
-                        : job.status === 'CLOSED'
+                        : job.status === 'closed'
                         ? 'bg-red-100 text-red-800'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}>
@@ -120,7 +116,7 @@ export default async function MyJobsPage() {
                   
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="text-sm text-gray-500">
-                      {job.applications.length} application{job.applications.length !== 1 ? 's' : ''}
+                      {job.application_count || 0} application{(job.application_count || 0) !== 1 ? 's' : ''}
                     </div>
                     <div className="flex space-x-2">
                       <Link

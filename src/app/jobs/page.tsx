@@ -1,8 +1,18 @@
-import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import JobCard from "@/components/jobs/job-card";
+import { query } from "@/lib/db";
+
+interface Job {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  budget?: number | null;
+  district?: string | null;
+  deadline?: Date | string | null;
+  createdAt: Date | string;
+}
 
 type SearchParams = {
   category?: string;
@@ -18,27 +28,10 @@ export default async function JobsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const where: Prisma.JobWhereInput = {};
   
-  if (resolvedSearchParams.category) where.category = resolvedSearchParams.category;
-  if (resolvedSearchParams.district) where.district = resolvedSearchParams.district;
-  if (resolvedSearchParams.minBudget || resolvedSearchParams.maxBudget) {
-    where.budget = {};
-    if (resolvedSearchParams.minBudget) where.budget.gte = Number(resolvedSearchParams.minBudget);
-    if (resolvedSearchParams.maxBudget) where.budget.lte = Number(resolvedSearchParams.maxBudget);
-  }
-  if (resolvedSearchParams.q) {
-    where.OR = [
-      { title: { contains: resolvedSearchParams.q, mode: "insensitive" } },
-      { description: { contains: resolvedSearchParams.q, mode: "insensitive" } },
-    ];
-  }
-
-  const jobs = await prisma.job.findMany({
-    where,
-    orderBy: [{ createdAt: "desc" }],
-    take: 50,
-  });
+  // Fetching jobs using raw SQL
+  const jobsResult = await query('SELECT * FROM "Job" ORDER BY "createdAt" DESC LIMIT 50');
+  const jobs = jobsResult.rows as Job[];
 
   return (
     <DashboardLayout>
@@ -153,7 +146,7 @@ export default async function JobsPage({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {jobs.map((job) => (
+            {jobs.map((job: Job) => (
               <JobCard key={job.id} job={job} />
             ))}
           </div>

@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
+
+interface ApplicationRow {
+  id: string;
+  status: string;
+  createdAt: Date;
+  jobId: string;
+  title: string;
+  category: string;
+  description: string;
+  budget: string;
+  district: string;
+  jobStatus: string;
+  employerName: string;
+  employerPhone: string;
+}
 
 export async function GET() {
   try {
@@ -12,39 +27,61 @@ export async function GET() {
     }
 
     // Get the user by phone to get the correct user ID and role
-    const user = await prisma.user.findUnique({
-      where: { phone: session.user?.phone },
-      select: { id: true, role: true }
-    });
+    const userResult = await query(
+      'SELECT id, role FROM "User" WHERE phone = $1',
+      [session.user?.phone]
+    );
+    const user = userResult.rows[0];
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (user.role !== "WORKER") {
+    if (user.role?.toUpperCase() !== "WORKER") {
       return NextResponse.json({ error: "Only workers can view applied jobs" }, { status: 403 });
     }
 
-    const applications = await prisma.application.findMany({
-      where: {
-        workerId: user.id
-      },
-      include: {
-        job: {
-          include: {
-            employer: {
-              select: {
-                name: true,
-                phone: true
-              }
-            }
-          }
+    // Get applications with job and employer details
+    const applicationsResult = await query(`
+      SELECT 
+        a.id,
+        a.status,
+        a."createdAt",
+        j.id as "jobId",
+        j.title,
+        j.category,
+        j.description,
+        j.budget,
+        j.district,
+        j.status as "jobStatus",
+        e.name as "employerName",
+        e.phone as "employerPhone"
+      FROM "Application" a
+      JOIN "Job" j ON a."jobId" = j.id
+      JOIN "User" e ON j."employerId" = e.id
+      WHERE a."workerId" = $1
+      ORDER BY a."createdAt" DESC
+    `, [user.id]);
+
+    // Transform the data to match the expected format
+    const applications = applicationsResult.rows.map((row: ApplicationRow) => ({
+      id: row.id,
+      status: row.status,
+      createdAt: row.createdAt,
+      job: {
+        id: row.jobId,
+        title: row.title,
+        category: row.category,
+        description: row.description,
+        budget: row.budget,
+        district: row.district,
+        status: row.jobStatus,
+        employer: {
+          name: row.employerName,
+          phone: row.employerPhone
         }
-      },
-      orderBy: {
-        createdAt: "desc"
       }
-    });
+    }));
 
     return NextResponse.json(applications);
 
