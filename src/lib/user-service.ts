@@ -9,7 +9,7 @@ export interface User {
   role: string;
   district?: string;
   languages?: string;
-  passwordhash?: string;
+  passwordHash?: string;
   suspended: boolean;
   suspensionreason?: string;
   suspendedat?: Date;
@@ -49,7 +49,7 @@ export async function createUser(userData: CreateUserData): Promise<User> {
   const result = await query(
     `INSERT INTO "User" (
       id, name, phone, email, role, district, languages, 
-      passwordhash, suspended, createdAt
+      "passwordHash", suspended, createdAt
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING *`,
     [id, name, phone, email, role, district, languages, passwordHash, false, new Date()]
@@ -62,11 +62,11 @@ export async function createUser(userData: CreateUserData): Promise<User> {
 export async function verifyPassword(phone: string, password: string): Promise<User | null> {
   const user = await findUserByPhone(phone);
   
-  if (!user || !user.passwordhash) {
+  if (!user || !user.passwordHash) {
     return null;
   }
   
-  const isValid = await bcrypt.compare(password, user.passwordhash);
+  const isValid = await bcrypt.compare(password, user.passwordHash);
   return isValid ? user : null;
 }
 

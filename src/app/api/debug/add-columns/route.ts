@@ -2,6 +2,30 @@ import { query } from '@/lib/db';
 
 export async function POST() {
   try {
+    // Add passwordHash column to User table if it doesn't exist
+    const addPasswordHashColumn = await query(`
+      ALTER TABLE "User" 
+      ADD COLUMN IF NOT EXISTS "passwordHash" VARCHAR(255)
+    `);
+
+    console.log('✅ PasswordHash column check completed');
+
+    // Also add missing columns to User table if needed
+    const addEmailColumn = await query(`
+      ALTER TABLE "User" 
+      ADD COLUMN IF NOT EXISTS "email" VARCHAR(255)
+    `);
+
+    const addDistrictColumn = await query(`
+      ALTER TABLE "User" 
+      ADD COLUMN IF NOT EXISTS "district" VARCHAR(100)
+    `);
+
+    const addLanguagesColumn = await query(`
+      ALTER TABLE "User" 
+      ADD COLUMN IF NOT EXISTS "languages" TEXT[]
+    `);
+
     // Create EmployerProfile table if it doesn't exist
     await query(`
       CREATE TABLE IF NOT EXISTS "EmployerProfile" (
@@ -39,6 +63,13 @@ export async function POST() {
     `);
 
     // Check updated table structures
+    const userTableResult = await query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'User' AND table_schema = 'public'
+      ORDER BY ordinal_position
+    `);
+
     const workerProfileResult = await query(`
       SELECT column_name, data_type 
       FROM information_schema.columns 
@@ -55,13 +86,13 @@ export async function POST() {
 
     return Response.json({ 
       message: "Tables and columns created/updated successfully",
+      userTable: {
+        columns: userTableResult.rows,
+        count: userTableResult.rows.length
+      },
       workerProfileTable: {
         columns: workerProfileResult.rows,
         count: workerProfileResult.rows.length
-      },
-      employerProfileTable: {
-        columns: employerProfileResult.rows,
-        count: employerProfileResult.rows.length
       }
     });
   } catch (error) {
