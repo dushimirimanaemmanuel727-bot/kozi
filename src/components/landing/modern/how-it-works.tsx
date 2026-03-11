@@ -1,27 +1,30 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/contexts/language-context';
 
 import { UserPlus, Search, CheckCircle2, ArrowRight } from 'lucide-react';
 
 const ModernHowItWorks = () => {
+  const { translate } = useLanguage();
+  
   const steps = [
     {
       step: 1,
-      title: 'Create Your Profile',
-      description: 'Sign up as a worker or an employer and complete your profile in minutes. Tell us about your skills or hiring needs.',
+      title: translate('step1_title'),
+      description: translate('step1_full_desc'),
       icon: <UserPlus className="w-8 h-8" />,
     },
     {
       step: 2,
-      title: 'Find Your Match',
-      description: 'Browse through our verified job listings or search for qualified professionals that fit your specific requirements.',
+      title: translate('step2_title'),
+      description: translate('step2_full_desc'),
       icon: <Search className="w-8 h-8" />,
     },
     {
       step: 3,
-      title: 'Connect & Hire',
-      description: 'Communicate securely through our platform, agree on terms, and start a successful working relationship.',
+      title: translate('step3_title'),
+      description: translate('step3_full_desc'),
       icon: <CheckCircle2 className="w-8 h-8" />,
     },
   ];
@@ -36,7 +39,7 @@ const ModernHowItWorks = () => {
             viewport={{ once: true }}
             className="inline-block px-4 py-1.5 mb-4 text-xs font-bold tracking-widest text-blue-600 uppercase bg-blue-50 rounded-full"
           >
-            Process
+            {translate('process')}
           </motion.span>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
@@ -45,7 +48,7 @@ const ModernHowItWorks = () => {
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6"
           >
-            Get Started in <span className="text-blue-600">3 Easy Steps</span>
+            {translate('get_started_steps')}
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -54,7 +57,7 @@ const ModernHowItWorks = () => {
             transition={{ delay: 0.2 }}
             className="text-lg text-slate-600 font-medium"
           >
-            Whether you're looking for work or looking to hire, our platform makes it simple and efficient.
+            {translate('how_it_works_subtitle')}
           </motion.p>
         </div>
 

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useNotifications } from "@/components/ui/notification-toast";
+import { useLanguage } from "@/contexts/language-context";
 
 export default function SignIn() {
   const [phone, setPhone] = useState("");
@@ -16,6 +17,7 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { showNotification } = useNotifications();
+  const { translate } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,12 +32,12 @@ export default function SignIn() {
       });
 
       if (result?.error) {
-        setError("Invalid phone number or password");
+        setError(translate('invalid_credentials'));
       } else {
         showNotification({
           type: "success",
-          title: "Login Successful",
-          message: "Welcome back!",
+          title: translate('login_successful'),
+          message: translate('welcome_back'),
         });
         
         // Fetch session to get user role for redirect
@@ -63,7 +65,7 @@ export default function SignIn() {
         }
       }
     } catch (error) {
-      setError("An error occurred. Please try again.");
+      setError(translate('error_occurred'));
     } finally {
       setLoading(false);
     }
@@ -83,17 +85,17 @@ export default function SignIn() {
               <span className="text-white font-bold text-2xl">K</span>
             </div>
             <h1 className="text-4xl font-extrabold text-slate-900 leading-tight mb-6">
-              Welcome back to <span className="text-blue-600">KaziHome</span>
+              {translate('welcome_back_auth')} to <span className="text-blue-600">KaziHome</span>
             </h1>
             <p className="text-lg text-slate-600 font-medium mb-8">
-              Log in to manage your jobs, applications, and professional profile in Rwanda's leading domestic service platform.
+              {translate('welcome_back_subtitle')}
             </p>
             
             <div className="space-y-4">
               {[
-                "Secure and verified accounts",
-                "Real-time job notifications",
-                "Professional profile management"
+                translate('secure_accounts'),
+                translate('real_time_notifications'),
+                translate('profile_management')
               ].map((text, i) => (
                 <div key={i} className="flex items-center space-x-3">
                   <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
@@ -132,11 +134,11 @@ export default function SignIn() {
           <div className="mb-10">
             <Link href="/" className="inline-flex items-center text-sm font-bold text-slate-400 hover:text-blue-600 transition-colors mb-6 group">
               <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-              Back to home
+              {translate('back_to_home')}
             </Link>
-            <h2 className="text-3xl font-extrabold text-slate-900">Sign In</h2>
+            <h2 className="text-3xl font-extrabold text-slate-900">{translate('sign_in_page')}</h2>
             <p className="text-slate-500 mt-2 font-medium">
-              Enter your credentials to access your account
+              {translate('sign_in_subtitle')}
             </p>
           </div>
 
@@ -156,7 +158,7 @@ export default function SignIn() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <label htmlFor="phone" className="text-sm font-bold text-slate-700 ml-1">
-                Phone Number
+                {translate('phone_number')}
               </label>
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors">
@@ -178,10 +180,10 @@ export default function SignIn() {
             <div className="space-y-2">
               <div className="flex justify-between items-center ml-1">
                 <label htmlFor="password" className="text-sm font-bold text-slate-700">
-                  Password
+                  {translate('password_auth')}
                 </label>
                 <Link href="/auth/forgot-password" className="text-xs font-bold text-blue-600 hover:text-blue-700">
-                  Forgot password?
+                  {translate('forgot_password')}
                 </Link>
               </div>
               <div className="relative group">
@@ -216,17 +218,19 @@ export default function SignIn() {
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Signing in...
+                  {translate('sign_in_page')}...
                 </>
-              ) : "Sign In"}
+              ) : (
+                translate('sign_in_page')
+              )}
             </button>
           </form>
 
           <div className="mt-10 text-center">
             <p className="text-slate-500 font-medium">
-              Don't have an account?{" "}
+              {translate('no_account')}{" "}
               <Link href="/auth/signup" className="text-blue-600 font-bold hover:text-blue-700 underline underline-offset-4">
-                Create account
+                {translate('create_account_link')}
               </Link>
             </p>
           </div>

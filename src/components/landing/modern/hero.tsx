@@ -2,10 +2,12 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useLanguage } from '@/contexts/language-context';
 
 const MotionLink = motion(Link);
 
 const ModernHero = () => {
+  const { translate } = useLanguage();
   return (
     <section className="w-full py-20 md:py-32 bg-white">
       <div className="container mx-auto px-4 md:px-6 text-center">
@@ -15,10 +17,10 @@ const ModernHero = () => {
           transition={{ duration: 0.8, ease: 'easeInOut' }}
         >
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tighter text-gray-900 mb-6 px-2">
-            Find Your Next Opportunity in Rwanda
+            {translate("hero_title")}
           </h1>
           <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-gray-600 mb-8 px-4">
-            KaziHome is the leading platform connecting skilled workers with employers for domestic and professional jobs across Rwanda. Your next chapter starts here.
+            {translate("hero_subtitle")}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center sm:items-stretch px-4">
             <MotionLink
@@ -27,7 +29,7 @@ const ModernHero = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              Browse Jobs
+              {translate("browse_workers")}
             </MotionLink>
             <MotionLink
               href="/auth/signup?role=employer"
@@ -35,7 +37,7 @@ const ModernHero = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              Post a Job
+              {translate("post_job")}
             </MotionLink>
           </div>
         </motion.div>

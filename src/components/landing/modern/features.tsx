@@ -1,44 +1,47 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/contexts/language-context';
 
 import { Shield, Zap, Search, Users, CheckCircle, Smartphone } from 'lucide-react';
 
 const ModernFeatures = () => {
+  const { translate } = useLanguage();
+  
   const features = [
     {
-      title: 'Verified Professionals',
-      description: 'Every worker on our platform is vetted for skill, reliability, and professionalism, ensuring you hire with confidence.',
+      title: translate('verified_professionals'),
+      description: translate('verified_professionals_desc'),
       icon: <Shield className="w-6 h-6 text-blue-600" />,
       color: 'bg-blue-50',
     },
     {
-      title: 'Instant Job Matching',
-      description: 'Our smart algorithm connects you with the right jobs or candidates in minutes, not days.',
+      title: translate('instant_job_matching'),
+      description: translate('instant_job_matching_desc'),
       icon: <Zap className="w-6 h-6 text-yellow-600" />,
       color: 'bg-yellow-50',
     },
     {
-      title: 'Easy Search & Filters',
-      description: 'Find exactly what you need with our advanced search and filtering tools for categories, locations, and skills.',
+      title: translate('easy_search_filters'),
+      description: translate('easy_search_filters_desc'),
       icon: <Search className="w-6 h-6 text-green-600" />,
       color: 'bg-green-50',
     },
     {
-      title: 'Trusted Community',
-      description: 'Join a growing community of employers and workers who value quality service and mutual respect.',
+      title: translate('trusted_community'),
+      description: translate('trusted_community_desc'),
       icon: <Users className="w-6 h-6 text-purple-600" />,
       color: 'bg-purple-50',
     },
     {
-      title: 'Quality Guarantee',
-      description: 'We prioritize excellence and reliability in every connection made through our platform.',
+      title: translate('quality_guarantee'),
+      description: translate('quality_guarantee_desc'),
       icon: <CheckCircle className="w-6 h-6 text-emerald-600" />,
       color: 'bg-emerald-50',
     },
     {
-      title: 'Mobile Friendly',
-      description: 'Access KaziHome anytime, anywhere from your smartphone with our fully responsive web platform.',
+      title: translate('mobile_friendly'),
+      description: translate('mobile_friendly_desc'),
       icon: <Smartphone className="w-6 h-6 text-indigo-600" />,
       color: 'bg-indigo-50',
     },
@@ -72,7 +75,7 @@ const ModernFeatures = () => {
             viewport={{ once: true }}
             className="inline-block px-4 py-1.5 mb-4 text-xs font-bold tracking-widest text-blue-600 uppercase bg-blue-50 rounded-full"
           >
-            Features
+            {translate('features')}
           </motion.span>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
@@ -81,7 +84,7 @@ const ModernFeatures = () => {
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6"
           >
-            Why Choose <span className="text-blue-600">KaziHome?</span>
+            {translate('why_choose_kazihome')}
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -90,7 +93,7 @@ const ModernFeatures = () => {
             transition={{ delay: 0.2 }}
             className="text-lg text-slate-600 font-medium"
           >
-            A seamless, trustworthy, and efficient way to connect employers and workers in Rwanda.
+            {translate('features_subtitle')}
           </motion.p>
         </div>
 

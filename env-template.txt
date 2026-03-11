@@ -1,0 +1,27 @@
+# Production Environment Variables Template
+# Copy this file to .env and fill in your actual values
+
+# Application Configuration
+NODE_ENV=production
+PORT=3000
+
+# Database Configuration
+POSTGRES_DB=kazi_home
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_database_password_here
+DATABASE_URL=postgresql://postgres:your_secure_database_password_here@db:5432/kazi_home
+
+# NextAuth Configuration
+NEXTAUTH_URL=https://your-domain.com
+NEXTAUTH_SECRET=your_very_secure_nextauth_secret_key_here_minimum_32_characters
+
+# Optional: Port Configuration
+DB_PORT=5433
+REDIS_PORT=6379
+
+# Instructions:
+# 1. Copy this file to .env (in the same directory as docker-compose.yml)
+# 2. Replace all placeholder values with your actual secure values
+# 3. Generate a secure NEXTAUTH_SECRET using: openssl rand -base64 32
+# 4. Set NEXTAUTH_URL to your actual deployed domain
+# 5. Use a strong database password

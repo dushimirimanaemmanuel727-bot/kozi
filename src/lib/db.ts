@@ -4,7 +4,12 @@ import { PHASE_PRODUCTION_BUILD } from 'next/constants';
 // Database connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' && process.env.DATABASE_SSL !== 'false' 
+    ? { 
+        rejectUnauthorized: false,
+        requestCert: false
+      } 
+    : false
 });
 
 let initStarted = false;

@@ -1,29 +1,32 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/contexts/language-context';
 
 import { Star, Quote } from 'lucide-react';
 
 const ModernTestimonials = () => {
+  const { translate } = useLanguage();
+  
   const testimonials = [
     {
-      quote: "KaziHome transformed my job search. I found a respectful employer and a stable income within a week. The verification process gives both sides peace of mind.",
-      name: 'Aline Uwamahoro',
-      role: 'Professional Nanny',
+      quote: translate('testimonial1_quote'),
+      name: translate('testimonial1_name'),
+      role: translate('testimonial1_role'),
       image: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=100&h=100&fit=crop',
       rating: 5,
     },
     {
-      quote: "Hiring reliable domestic staff used to be a nightmare of referrals and uncertainty. With KaziHome, it’s simple, safe, and I found a great cook in days.",
-      name: 'David Mugisha',
-      role: 'Homeowner, Kigali',
+      quote: translate('testimonial2_quote'),
+      name: translate('testimonial2_name'),
+      role: translate('testimonial2_role'),
       image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
       rating: 5,
     },
     {
-      quote: "As a gardener, I struggled to find consistent work. Now I have several regular clients all through KaziHome. The platform is very easy to use on my phone.",
-      name: 'Jean-Paul Nkurunziza',
-      role: 'Professional Gardener',
+      quote: translate('testimonial3_quote'),
+      name: translate('testimonial3_name'),
+      role: translate('testimonial3_role'),
       image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop',
       rating: 4,
     },
@@ -39,7 +42,7 @@ const ModernTestimonials = () => {
             viewport={{ once: true }}
             className="inline-block px-4 py-1.5 mb-4 text-xs font-bold tracking-widest text-blue-600 uppercase bg-blue-50 rounded-full"
           >
-            Testimonials
+            {translate('testimonials')}
           </motion.span>
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
@@ -48,7 +51,7 @@ const ModernTestimonials = () => {
             transition={{ delay: 0.1 }}
             className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6"
           >
-            Trusted by <span className="text-blue-600">Thousands</span>
+            {translate('what_people_say')}
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
