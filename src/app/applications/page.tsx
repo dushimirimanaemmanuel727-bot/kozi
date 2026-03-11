@@ -51,7 +51,7 @@ export default function Applications() {
   };
 
   useEffect(() => {
-    if (session?.user.role !== "EMPLOYER") {
+    if ((session?.user?.role || "").toLowerCase() !== "employer") {
       router.push("/dashboard");
       return;
     }
@@ -164,7 +164,7 @@ export default function Applications() {
     }
   };
 
-  if (!session || session.user.role !== "EMPLOYER") {
+  if (!session || (session.user?.role || "").toLowerCase() !== "employer") {
     return null;
   }
 

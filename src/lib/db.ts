@@ -1,10 +1,13 @@
 import { Pool, PoolClient } from 'pg';
+import { PHASE_PRODUCTION_BUILD } from 'next/constants';
 
 // Database connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
+
+let initStarted = false;
 
 // Connection helper
 export async function getConnection(): Promise<PoolClient> {
@@ -104,16 +107,28 @@ export async function initializeDatabase() {
   }
 }
 
-// Initialize database in all environments
-console.log('📍 Database module loaded');
+/**
+ * Render/Next builds can import server modules during `next build` / prerendering.
+ * We must NOT attempt DB connections during the build phase, otherwise deploys fail
+ * with ECONNREFUSED/ETIMEDOUT before the DB is reachable.
+ */
+export function maybeInitializeDatabase() {
+  if (initStarted) return;
+  initStarted = true;
 
-if (process.env.NODE_ENV === 'production') {
-  console.log('🏭 Production environment detected - Running database initialization...');
-  initializeDatabase().catch((error) => {
-    console.error('💥 Unhandled database initialization error:', error);
-  });
-} else {
-  console.log('🛠️  Development environment detected - Skipping automatic initialization');
+  const phase = process.env.NEXT_PHASE;
+  const isBuildPhase =
+    phase === PHASE_PRODUCTION_BUILD ||
+    phase === 'phase-production-build' ||
+    process.env.NEXT_RUNTIME === 'edge';
+
+  if (isBuildPhase) return;
+
+  if (process.env.NODE_ENV === 'production') {
+    initializeDatabase().catch((error) => {
+      console.error('💥 Unhandled database initialization error:', error);
+    });
+  }
 }
 
 export default pool;

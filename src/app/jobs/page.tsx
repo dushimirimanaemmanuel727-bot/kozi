@@ -2,6 +2,9 @@ import Link from "next/link";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import JobCard from "@/components/jobs/job-card";
 import { query } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 interface Job {
   id: string;
@@ -27,6 +30,20 @@ export default async function JobsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user?.role || "").toLowerCase();
+
+  // "Browse Jobs" is a worker feature; employers/admins should not see Apply CTAs here.
+  if (!session) {
+    redirect("/auth/signin");
+  }
+  if (role === "employer") {
+    redirect("/jobs/my-jobs");
+  }
+  if (role !== "worker") {
+    redirect("/dashboard");
+  }
+
   const resolvedSearchParams = await searchParams;
   
   // Fetching jobs using raw SQL

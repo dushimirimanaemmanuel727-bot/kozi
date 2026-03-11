@@ -4,7 +4,6 @@ import "./globals.css";
 import { SessionProviderWrapper } from "@/components/providers/session-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { NotificationProvider } from "@/components/ui/notification-toast";
-import "@/lib/db";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

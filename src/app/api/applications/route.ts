@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "EMPLOYER") {
+    if ((session.user?.role || "").toLowerCase() !== "employer") {
       return NextResponse.json({ error: "Only employers can view applications" }, { status: 403 });
     }
 
@@ -132,8 +132,8 @@ export async function POST(req: NextRequest) {
     // Create application
     const applicationId = `app_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const createResult = await query(
-      `INSERT INTO "Application" (id, "jobId", "workerId", status, "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, 'PENDING', NOW(), NOW())
+      `INSERT INTO "Application" (id, "jobId", "workerId", status)
+       VALUES ($1, $2, $3, 'PENDING')
        RETURNING *`,
       [applicationId, jobId, worker.id]
     );

@@ -9,7 +9,9 @@ export interface User {
   role: string;
   district?: string;
   languages?: string;
+  // NOTE: DB schema may expose this as `passwordhash` (lowercase) depending on how the table was created.
   passwordHash?: string;
+  passwordhash?: string;
   suspended: boolean;
   suspensionreason?: string;
   suspendedat?: Date;
@@ -29,13 +31,20 @@ export interface CreateUserData {
 
 // Find user by phone
 export async function findUserByPhone(phone: string): Promise<User | null> {
-  const result = await query('SELECT * FROM "User" WHERE phone = $1', [phone]);
+  // Alias password column defensively across schema variants.
+  const result = await query(
+    'SELECT *, passwordhash as "passwordHash" FROM "User" WHERE phone = $1',
+    [phone]
+  );
   return result.rows[0] || null;
 }
 
 // Find user by ID
 export async function findUserById(id: string): Promise<User | null> {
-  const result = await query('SELECT * FROM "User" WHERE id = $1', [id]);
+  const result = await query(
+    'SELECT *, passwordhash as "passwordHash" FROM "User" WHERE id = $1',
+    [id]
+  );
   return result.rows[0] || null;
 }
 
@@ -49,7 +58,7 @@ export async function createUser(userData: CreateUserData): Promise<User> {
   const result = await query(
     `INSERT INTO "User" (
       id, name, phone, email, role, district, languages, 
-      "passwordHash", suspended, createdAt
+      passwordhash, suspended, createdAt
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING *`,
     [id, name, phone, email, role, district, languages, passwordHash, false, new Date()]
@@ -62,11 +71,12 @@ export async function createUser(userData: CreateUserData): Promise<User> {
 export async function verifyPassword(phone: string, password: string): Promise<User | null> {
   const user = await findUserByPhone(phone);
   
-  if (!user || !user.passwordHash) {
+  const hash = user?.passwordHash ?? user?.passwordhash;
+  if (!user || !hash) {
     return null;
   }
   
-  const isValid = await bcrypt.compare(password, user.passwordHash);
+  const isValid = await bcrypt.compare(password, hash);
   return isValid ? user : null;
 }
 

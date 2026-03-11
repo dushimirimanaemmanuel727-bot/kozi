@@ -21,9 +21,8 @@ export async function GET() {
 
     // Check password
     let passwordValid = false;
-    if (user.passwordhash) {
-      passwordValid = await bcrypt.compare(password, user.passwordhash);
-    }
+    const hash = user?.passwordhash ?? user?.passwordHash;
+    if (hash) passwordValid = await bcrypt.compare(password, hash);
 
     // Check if user is suspended
     const isSuspended = user.suspended;
@@ -42,7 +41,7 @@ export async function GET() {
         role: user.role,
         district: user.district,
         suspended: isSuspended,
-        hasPasswordHash: !!user.passwordhash,
+        hasPasswordHash: !!(user?.passwordhash ?? user?.passwordHash),
         passwordValid: passwordValid
       },
       canLogin: passwordValid && !isSuspended

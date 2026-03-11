@@ -25,9 +25,8 @@ export async function POST(request: Request) {
 
     // Check password
     let passwordValid = false;
-    if (user.passwordhash) {
-      passwordValid = await bcrypt.compare(password, user.passwordhash);
-    }
+    const hash = user?.passwordhash ?? user?.passwordHash;
+    if (hash) passwordValid = await bcrypt.compare(password, hash);
 
     if (!passwordValid) {
       return Response.json({ 

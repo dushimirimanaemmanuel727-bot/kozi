@@ -36,6 +36,7 @@ export default function CompleteWorkerProfile() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [canRender, setCanRender] = useState(false);
   const [formData, setFormData] = useState({
     category: "GENERAL",
     skills: "",
@@ -54,15 +55,24 @@ export default function CompleteWorkerProfile() {
   const [passportPreview, setPassportPreview] = useState<string>("");
   const [profileCompletion, setProfileCompletion] = useState<number>(0);
 
-  if (!session) {
-    router.push("/auth/signin");
-    return null;
-  }
+  // Avoid calling router.push during render (breaks static generation/SSR)
+  useEffect(() => {
+    if (!session) return;
+    const role = (session.user?.role || "").toLowerCase();
+    if (role !== "worker") {
+      router.push("/dashboard");
+      return;
+    }
+    setCanRender(true);
+  }, [session, router]);
 
-  if (session.user.role !== "WORKER") {
-    router.push("/dashboard");
-    return null;
-  }
+  useEffect(() => {
+    if (session === null) {
+      router.push("/auth/signin");
+    }
+  }, [session, router]);
+
+  if (!session || !canRender) return null;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
