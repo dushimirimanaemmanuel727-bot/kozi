@@ -32,7 +32,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const addNotification = (message: string, type: Notification["type"]) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    const id = `${timestamp}-${random}`;
     setNotifications((prev) => [...prev, { id, message, type }]);
     
     // Auto-remove after 5 seconds

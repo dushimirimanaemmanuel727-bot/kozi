@@ -14,21 +14,30 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const LANGUAGE_STORAGE_KEY = 'kazi-home-language';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Lang>('en');
-
-  useEffect(() => {
-    // Load saved language from localStorage
-    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Lang;
-    if (savedLanguage && ['en', 'rw', 'fr'].includes(savedLanguage)) {
-      setLanguageState(savedLanguage);
-    } else {
-      // Detect browser language as fallback
+  const [language, setLanguageState] = useState<Lang>(() => {
+    // Initialize with saved language or browser language
+    if (typeof window !== 'undefined') {
+      const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Lang;
+      if (savedLanguage && ['en', 'rw', 'fr'].includes(savedLanguage)) {
+        return savedLanguage;
+      }
       const browserLang = navigator.language.split('-')[0] as Lang;
       if (['en', 'rw', 'fr'].includes(browserLang)) {
-        setLanguageState(browserLang);
+        return browserLang;
       }
     }
-  }, []);
+    return 'en';
+  });
+
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Lang;
+      if (savedLanguage && ['en', 'rw', 'fr'].includes(savedLanguage) && savedLanguage !== language) {
+        setLanguageState(savedLanguage);
+      }
+    }
+  }, [language]);
 
   const setLanguage = (lang: Lang) => {
     setLanguageState(lang);

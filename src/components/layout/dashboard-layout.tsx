@@ -9,22 +9,25 @@ import { NotificationProvider, NotificationContainer } from "@/contexts/notifica
 import NotificationBell from "@/components/notifications/notification-bell";
 import ModernSidebar from "@/components/layout/modern-sidebar";
 
+interface UserProfile {
+  id: string;
+  email: string;
+  name?: string;
+  photoUrl?: string;
+  role?: string;
+  [key: string]: unknown;
+}
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  userProfile?: any;
+  userProfile?: UserProfile;
 }
 
 export default function DashboardLayout({ children, userProfile }: DashboardLayoutProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userProfileData, setUserProfileData] = useState<any>(null);
-
-  useEffect(() => {
-    if (session) {
-      fetchUserProfile();
-    }
-  }, [session]);
+  const [userProfileData, setUserProfileData] = useState<UserProfile | null>(null);
 
   const fetchUserProfile = async () => {
     try {
@@ -35,13 +38,19 @@ export default function DashboardLayout({ children, userProfile }: DashboardLayo
       
       const response = await fetch(endpoint);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as UserProfile;
         setUserProfileData(data);
       }
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
     }
   };
+
+  useEffect(() => {
+    if (session) {
+      fetchUserProfile();
+    }
+  }, [session, fetchUserProfile]);
 
   if (!session) {
     return null;

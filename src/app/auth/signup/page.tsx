@@ -175,7 +175,7 @@ export default function SignUp() {
                 }`}
               >
                 <Briefcase className="w-6 h-6" />
-                <span className="font-bold text-sm">I'm a Worker</span>
+                <span className="font-bold text-sm">I&apos;m a Worker</span>
               </button>
               <button
                 type="button"
@@ -187,7 +187,7 @@ export default function SignUp() {
                 }`}
               >
                 <Building className="w-6 h-6" />
-                <span className="font-bold text-sm">I'm an Employer</span>
+                <span className="font-bold text-sm">I&apos;m an Employer</span>
               </button>
             </div>
 

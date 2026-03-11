@@ -1,4 +1,4 @@
-import { query, transaction } from './db';
+import { query } from './db';
 import bcrypt from 'bcryptjs';
 
 export interface User {

@@ -20,16 +20,6 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (session) {
-      fetchNotifications();
-      
-      // Set up polling for new notifications every 30 seconds
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [session]);
-
   const fetchNotifications = async () => {
     try {
       const response = await fetch("/api/notifications");
@@ -42,6 +32,16 @@ export default function NotificationBell() {
       console.error("Failed to fetch notifications:", error);
     }
   };
+
+  useEffect(() => {
+    if (session) {
+      fetchNotifications();
+      
+      // Set up polling for new notifications every 30 seconds
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [session, fetchNotifications]);
 
   const markAsRead = async (notificationId: string) => {
     try {
