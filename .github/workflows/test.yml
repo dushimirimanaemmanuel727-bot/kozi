@@ -1,0 +1,165 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Run Prettier check
+      run: npm run format:check
+
+    - name: Run TypeScript compiler
+      run: npx tsc --noEmit
+
+    - name: Run unit tests
+      run: npm test -- --coverage --watchAll=false
+      env:
+        NODE_ENV: test
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Wait for services
+      run: |
+        timeout 60 bash -c 'until nc -z localhost 5432; do sleep 1; done'
+        timeout 30 bash -c 'until nc -z localhost 6379; do sleep 1; done'
+
+    - name: Setup test database
+      run: |
+        PGPASSWORD=test_password psql -h localhost -U test_user -d test_db -c "
+        CREATE TABLE IF NOT EXISTS \"User\" (
+          id VARCHAR(255) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          phone VARCHAR(20) UNIQUE NOT NULL,
+          email VARCHAR(255),
+          role VARCHAR(50) NOT NULL,
+          district VARCHAR(100),
+          languages TEXT[],
+          \"passwordHash\" VARCHAR(255),
+          suspended BOOLEAN DEFAULT false,
+          \"createdAt\" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        "
+
+    - name: Run integration tests
+      run: npm run test:integration
+      env:
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        NEXTAUTH_SECRET: test_secret_for_integration
+        DATABASE_SSL: false
+        NODE_ENV: test
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright
+      run: npx playwright install --with-deps
+
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+
+    - name: Start application
+      run: |
+        npm start &
+        sleep 10
+
+    - name: Run E2E tests
+      run: npm run test:e2e
+      env:
+        BASE_URL: http://localhost:3000
+
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 7
