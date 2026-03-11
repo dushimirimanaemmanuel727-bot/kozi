@@ -31,9 +31,8 @@ export interface CreateUserData {
 
 // Find user by phone
 export async function findUserByPhone(phone: string): Promise<User | null> {
-  // Alias password column defensively across schema variants.
   const result = await query(
-    'SELECT *, passwordhash as "passwordHash" FROM "User" WHERE phone = $1',
+    'SELECT * FROM "User" WHERE phone = $1',
     [phone]
   );
   return result.rows[0] || null;
@@ -42,7 +41,7 @@ export async function findUserByPhone(phone: string): Promise<User | null> {
 // Find user by ID
 export async function findUserById(id: string): Promise<User | null> {
   const result = await query(
-    'SELECT *, passwordhash as "passwordHash" FROM "User" WHERE id = $1',
+    'SELECT * FROM "User" WHERE id = $1',
     [id]
   );
   return result.rows[0] || null;
@@ -58,7 +57,7 @@ export async function createUser(userData: CreateUserData): Promise<User> {
   const result = await query(
     `INSERT INTO "User" (
       id, name, phone, email, role, district, languages, 
-      passwordhash, suspended, createdAt
+      "passwordHash", suspended, "createdAt"
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING *`,
     [id, name, phone, email, role, district, languages, passwordHash, false, new Date()]
@@ -71,7 +70,7 @@ export async function createUser(userData: CreateUserData): Promise<User> {
 export async function verifyPassword(phone: string, password: string): Promise<User | null> {
   const user = await findUserByPhone(phone);
   
-  const hash = user?.passwordHash ?? user?.passwordhash;
+  const hash = user?.passwordHash;
   if (!user || !hash) {
     return null;
   }
