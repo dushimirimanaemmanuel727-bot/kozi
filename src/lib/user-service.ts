@@ -49,7 +49,7 @@ export async function findUserById(id: string): Promise<User | null> {
 
 // Create new user
 export async function createUser(userData: CreateUserData): Promise<User> {
-  const { name, phone, email, role, district, languages = [], password } = userData;
+  const { name, phone, email, role, district, languages = ["en"], password } = userData;
   
   const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const passwordHash = password ? await bcrypt.hash(password, 12) : undefined;
