@@ -127,13 +127,13 @@ export default async function AnalyticsPage() {
     <AdminAnalytics
       session={session}
       data={{
-        userGrowth: userGrowthData,
-        jobStats: jobStatsData,
-        applicationTrends: applicationTrends,
-        categories: categoryData,
-        districts: districtData,
-        revenue: monthlyRevenue,
-        userActivity: userActivityData,
+        userGrowth: userGrowthData.rows,
+        jobStats: jobStatsData.rows,
+        applicationTrends: applicationTrends.rows,
+        categories: categoryData.rows,
+        districts: districtData.rows,
+        revenue: monthlyRevenue.rows,
+        userActivity: userActivityData.rows,
         metrics: systemMetrics
       }}
     />
