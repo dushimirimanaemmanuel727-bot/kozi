@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useRef, ReactNode } from "react";
 
 interface Notification {
   id: string;
@@ -30,11 +30,10 @@ interface NotificationProviderProps {
 
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const counterRef = useRef(0);
 
   const addNotification = (message: string, type: Notification["type"]) => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000);
-    const id = `${timestamp}-${random}`;
+    const id = `notification-${counterRef.current++}`;
     setNotifications((prev) => [...prev, { id, message, type }]);
     
     // Auto-remove after 5 seconds

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -24,12 +24,6 @@ export default function ConfirmDialog({
   type = "danger"
 }: ConfirmDialogProps) {
   const [isClosing, setIsClosing] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsClosing(false);
-    }
-  }, [isOpen]);
 
   const handleConfirm = () => {
     setIsClosing(true);

@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import SignOutButton from "@/components/auth/sign-out-button";
 import { NotificationProvider, NotificationContainer } from "@/contexts/notification-context";
 import NotificationBell from "@/components/notifications/notification-bell";
 import ModernSidebar from "@/components/layout/modern-sidebar";
@@ -29,7 +27,7 @@ export default function DashboardLayout({ children, userProfile }: DashboardLayo
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userProfileData, setUserProfileData] = useState<UserProfile | null>(null);
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       const userRole = session?.user?.role?.toLowerCase();
       const endpoint = userRole === "worker" 
@@ -44,7 +42,7 @@ export default function DashboardLayout({ children, userProfile }: DashboardLayo
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
     }
-  };
+  }, [session?.user?.role]);
 
   useEffect(() => {
     if (session) {

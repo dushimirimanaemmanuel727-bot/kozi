@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 import { Lang, t } from '@/lib/i18n';
 
 interface LanguageContextType {
@@ -28,16 +28,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
     return 'en';
   });
-
-  useEffect(() => {
-    // Only run on client side
-    if (typeof window !== 'undefined') {
-      const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Lang;
-      if (savedLanguage && ['en', 'rw', 'fr'].includes(savedLanguage) && savedLanguage !== language) {
-        setLanguageState(savedLanguage);
-      }
-    }
-  }, [language]);
 
   const setLanguage = (lang: Lang) => {
     setLanguageState(lang);
