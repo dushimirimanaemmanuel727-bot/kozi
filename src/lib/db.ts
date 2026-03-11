@@ -89,7 +89,7 @@ export async function initializeDatabase() {
       return true;
     } catch (error) {
       client.release();
-      console.warn('⚠️  Database tables not found - Migration required');
+      console.warn('⚠️  Database tables not found - Migration required:', error);
       console.log('💡 Please run database migrations manually');
       return false;
     }
