@@ -1,396 +1,229 @@
-# Deployment Configuration
+# Deployment Guide for Kazi-Home
 
-## Environment Variables
+This guide covers containerizing and deploying the Kazi-Home application using Docker.
 
-Create a `.env.local` file with the following configuration:
+## Prerequisites
+
+- Docker and Docker Compose installed
+- Git
+- Basic command line knowledge
+
+## Project Structure
+
+The project is a Next.js application with the following key files for deployment:
+
+- `Dockerfile` - Container configuration
+- `docker-compose.yml` - Multi-service orchestration
+- `.dockerignore` - Files to exclude from container
+
+## Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd kazi-home
+   ```
+
+2. **Build and run the application**
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Access the application**
+   - Frontend: http://localhost:3000
+   - Database: localhost:5432
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the project root:
 
 ```bash
-# Database Configuration
-DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+# Database
+DATABASE_URL=postgresql://kazi_user:kazi_password@postgres:5432/kazi_home
 
-# NextAuth Configuration
-NEXTAUTH_SECRET=your-secret-key-here
+# Next.js
 NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key
 
-# Security Configuration
-JWT_SECRET=your-jwt-secret-here
-SESSION_SECRET=your-session-secret-here
-
-# Rate Limiting Configuration
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-
-# CORS Configuration
-CORS_ORIGIN=http://localhost:3000
-CORS_CREDENTIALS=true
-
-# Security Headers
-CSP_DIRECTIVE=default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https: data:; connect-src 'self' https://api.example.com;
-
-# Logging Configuration
-LOG_LEVEL=info
-LOG_FORMAT=json
-
-# Monitoring Configuration
-SENTRY_DSN=your-sentry-dsn-here
-
-# Production Configuration
-NODE_ENV=production
-PORT=3000
-
-# Email Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
+# Security
+JWT_SECRET=your-jwt-secret
 ```
 
-## Security Headers Configuration
+### Database
 
-Create a `security-headers.ts` file with the following content:
+The application uses PostgreSQL. The database is automatically initialized with the schema from `database-schema.sql`.
 
-```typescript
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+## Production Deployment
 
-export function securityHeaders(response: NextResponse): void {
-  // Security headers
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-XSS-Protection", "1; mode=block");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
-  
-  // Content Security Policy
-  const cspDirectives = [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "font-src 'self' https: data:",
-    "connect-src 'self'",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'"
-  ];
-  
-  response.headers.set("Content-Security-Policy", cspDirectives.join("; "));
-  
-  // HSTS (HTTP Strict Transport Security)
-  if (process.env.NODE_ENV === 'production') {
-    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  }
-}
+### 1. Build the Docker Image
 
-export function securityHeadersMiddleware(request: NextRequest, response: NextResponse): NextResponse {
-  securityHeaders(response);
-  return response;
-}
+```bash
+docker-compose -f docker-compose.yml build
 ```
 
-## Rate Limiting Configuration
+### 2. Run in Production Mode
 
-Create a `rate-limiter.ts` file with the following content:
-
-```typescript
-import { NextRequest } from "next/server";
-
-interface RateLimitResult {
-  limited: boolean;
-  current: number;
-  limit: number;
-  resetTime: number;
-}
-
-const rateLimitWindowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'); // 15 minutes
-const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100');
-
-const ipRequestCounts = new Map<string, { count: number; resetTime: number }>();
-
-export async function rateLimit(request: NextRequest): Promise<RateLimitResult> {
-  const ip = request.ip || 'unknown';
-  const now = Date.now();
-
-  // Clean up expired entries
-  for (const [key, value] of ipRequestCounts.entries()) {
-    if (value.resetTime < now) {
-      ipRequestCounts.delete(key);
-    }
-  }
-
-  // Get current count for this IP
-  const current = ipRequestCounts.get(ip) || { count: 0, resetTime: now + rateLimitWindowMs };
-  
-  // Increment count
-  current.count++;
-  ipRequestCounts.set(ip, current);
-
-  // Check if rate limit exceeded
-  const limited = current.count > rateLimitMaxRequests;
-
-  return {
-    limited,
-    current: current.count,
-    limit: rateLimitMaxRequests,
-    resetTime: current.resetTime
-  };
-}
+```bash
+docker-compose -f docker-compose.yml up -d
 ```
 
-## Database Configuration
+### 3. Health Checks
 
-Update your `db.ts` file with the following content:
+Verify the application is running:
 
-```typescript
-import { Pool, PoolClient } from 'pg';
-import { PHASE_PRODUCTION_BUILD } from 'next/constants';
-import { QueryResult } from '@/types/database';
-
-// Database connection pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false // Always disable SSL for Docker containers
-});
-
-let initStarted = false;
-
-// Connection helper
-export async function getConnection(): Promise<PoolClient> {
-  return pool.connect();
-}
-
-// Query helper
-export async function query<T = any>(text: string | TemplateStringsArray, params?: any[]): Promise<QueryResult<T>> {
-  const client = await getConnection();
-  try {
-    const queryString = typeof text === 'string' ? text : text.join('');
-    const result = await client.query(queryString, params);
-    return result;
-  } finally {
-    client.release();
-  }
-}
-
-// Transaction helper
-export async function transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await getConnection();
-  try {
-    await client.query('BEGIN');
-    const result = await callback(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-// Database initialization
-export async function initializeDatabase() {
-  const startTime = Date.now();
-  
-  try {
-    console.log('🚀 Starting database initialization...');
-    
-    // Test basic connection
-    const client = await getConnection();
-    const connectionTime = Date.now() - startTime;
-    console.log(`🗄️  Database connection established in ${connectionTime}ms`);
-    
-    // Test a simple query
-    const queryStart = Date.now();
-    await client.query('SELECT 1 as test');
-    const queryTime = Date.now() - queryStart;
-    console.log(`✅ Database query test passed in ${queryTime}ms`);
-    
-    // Check if users table exists
-    try {
-      const userCountStart = Date.now();
-      const userResult = await client.query('SELECT COUNT(*) as count FROM "User"');
-      const userCount = parseInt(userResult.rows[0].count);
-      const userCountTime = Date.now() - userCountStart;
-      
-      console.log(`📊 Database ready - Found ${userCount} users in system (${userCountTime}ms)`);
-      
-      // Test table accessibility
-      const tables = ['Job', 'Application', 'Review', 'Notification'];
-      console.log('🔍 Verifying table accessibility...');
-      
-      for (const tableName of tables) {
-        try {
-          await client.query(`SELECT 1 FROM "${tableName}" LIMIT 1`);
-          console.log(`✅ ${tableName} table accessible`);
-        } catch (error) {
-          console.warn(`⚠️  ${tableName} table check failed:`, error);
-        }
-      }
-      
-      const totalTime = Date.now() - startTime;
-      console.log(`🎉 Database initialization completed successfully in ${totalTime}ms`);
-      
-      client.release();
-      return true;
-    } catch (error) {
-      client.release();
-      console.warn('⚠️  Database tables not found - Migration required:', error);
-      console.log('💡 Please run database migrations manually');
-      return false;
-    }
-    
-  } catch (error) {
-    const totalTime = Date.now() - startTime;
-    console.error(`❌ Database initialization failed after ${totalTime}ms:`, error);
-    console.error('🔥 Initialization error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV
-    });
-    return false;
-  }
-}
-
-/**
- * Render/Next builds can import server modules during `next build` / prerendering.
- * We must NOT attempt DB connections during the build phase, otherwise deploys fail
- * with ECONNREFUSED/ETIMEDOUT before the DB is reachable.
- */
-export function maybeInitializeDatabase() {
-  if (initStarted) return;
-  initStarted = true;
-
-  const phase = process.env.NEXT_PHASE;
-  const isBuildPhase =
-    phase === PHASE_PRODUCTION_BUILD ||
-    phase === 'phase-production-build' ||
-    process.env.NEXT_RUNTIME === 'edge';
-
-  if (isBuildPhase) return;
-
-  if (process.env.NODE_ENV === 'production') {
-    initializeDatabase().catch((error) => {
-      console.error('💥 Unhandled database initialization error:', error);
-    });
-  }
-}
-
-export default pool;
+```bash
+curl http://localhost:3000/api/health
 ```
 
-## Middleware Configuration
+## Development Workflow
 
-Update your `middleware.ts` file with the following content:
+### Development Mode
 
-```typescript
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { rateLimit } from "./lib/rate-limiter";
-import { securityHeaders } from "./lib/security-headers";
+```bash
+# Start development services
+docker-compose -f docker-compose.dev.yml up
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Security headers
-  const response = NextResponse.next();
-  securityHeaders(response);
-
-  // Rate limiting
-  const rateLimitResult = await rateLimit(request);
-  if (rateLimitResult.limited) {
-    return NextResponse.json(
-      {
-        error: "Too many requests",
-        message: "Rate limit exceeded. Please try again later."
-      },
-      { status: 429 }
-    );
-  }
-
-  // Debug endpoint protection - disable in production
-  if (process.env.NODE_ENV === 'production') {
-    if (pathname.startsWith('/api/debug/')) {
-      return NextResponse.json(
-        {
-          error: "Endpoint not found",
-          message: "Debug endpoints are disabled in production"
-        },
-        { status: 404 }
-      );
-    }
-  }
-
-  // Allow access to auth pages, API routes, and static files
-  if (
-    pathname.startsWith("/auth/") ||
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/uploads/") ||
-    pathname === "/"
-  ) {
-    return NextResponse.next();
-  }
-
-  // For now, we'll handle admin protection at the page level
-  // The dashboard redirect logic will handle routing
-  return NextResponse.next();
-}
-
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
-};
+# Or with hot reload
+docker-compose -f docker-compose.dev.yml up --build
 ```
 
-## Deployment Steps
+### Stopping Services
 
-1. **Set up environment variables**
-   - Copy `.env.example` to `.env.local`
-   - Update with your actual configuration
+```bash
+docker-compose down
+```
 
-2. **Install dependencies**
+## Monitoring and Logs
+
+### View Logs
+
+```bash
+# View all logs
+docker-compose logs -f
+
+# View specific service logs
+docker-compose logs -f kazi-home
+```
+
+### Check Running Containers
+
+```bash
+docker-compose ps
+```
+
+## Scaling
+
+To scale the application horizontally:
+
+```bash
+docker-compose up --scale kazi-home=3
+```
+
+## Security Considerations
+
+1. **Environment Variables**: Never commit sensitive data to version control
+2. **Database Credentials**: Use strong passwords and rotate regularly
+3. **Network Security**: Use firewall rules to restrict access
+4. **SSL/TLS**: Configure HTTPS for production deployments
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port Already in Use**
    ```bash
-   npm install
+   # Stop existing services
+docker-compose down
+   # Or use different ports in docker-compose.yml
    ```
 
-3. **Test the application**
-   ```bash
-   npm run dev
-   ```
+2. **Database Connection Issues**
+   - Check if PostgreSQL is running: `docker-compose ps`
+   - Verify connection string in `.env`
+   - Check database logs: `docker-compose logs postgres`
 
-4. **Build for production**
-   ```bash
-   npm run build
-   ```
+3. **Build Failures**
+   - Ensure all dependencies are in `package.json`
+   - Check `.dockerignore` for accidentally excluded files
+   - Verify Docker daemon is running
 
-5. **Deploy**
-   - For Vercel: Push to your repository and deploy via Vercel dashboard
-   - For other platforms: Follow their specific deployment procedures
+### Debug Commands
 
-## Security Best Practices
+```bash
+# Enter running container
+docker-compose exec kazi-home sh
 
-- Never commit `.env.local` to version control
-- Use strong, unique secrets for JWT and session tokens
-- Regularly update dependencies
-- Monitor logs for suspicious activity
-- Implement proper backup procedures
-- Use HTTPS in production
+# Check container status
+docker-compose ps
 
-## Monitoring and Maintenance
+# View container resource usage
+docker stats
+```
 
-- Set up error tracking (e.g., Sentry)
-- Monitor database performance
-- Regularly check security headers
-- Review rate limiting logs
-- Keep dependencies updated
+## Backup and Recovery
 
-This configuration provides a solid foundation for secure, production-ready deployment with proper security measures, rate limiting, and error handling.
+### Database Backup
+
+```bash
+# Backup database
+docker-compose exec postgres pg_dump -U kazi_user kazi_home > backup.sql
+
+# Restore database
+docker-compose exec -T postgres psql -U kazi_user kazi_home < backup.sql
+```
+
+## CI/CD Integration
+
+### GitHub Actions Example
+
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and deploy
+        run: |
+          docker-compose build
+          docker-compose up -d
+```
+
+## Performance Optimization
+
+1. **Multi-stage Builds**: Already implemented in Dockerfile
+2. **Layer Caching**: Order Dockerfile instructions by frequency of change
+3. **Health Checks**: Add health check endpoints
+4. **Resource Limits**: Configure memory and CPU limits in docker-compose.yml
+
+## Monitoring
+
+### Application Metrics
+
+- Use Prometheus/Grafana for monitoring
+- Implement health check endpoints
+- Set up logging with ELK stack or similar
+
+### Container Metrics
+
+```bash
+# View container resource usage
+docker stats
+
+# View detailed container information
+docker inspect kazi-home
+```
+
+## Next Steps
+
+1. Configure SSL/TLS for production
+2. Set up automated backups
+3. Implement monitoring and alerting
+4. Configure load balancing for scaling
+5. Set up CI/CD pipeline
