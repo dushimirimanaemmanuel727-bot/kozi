@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { Application, Job, User, WorkerProfile } from "@/types/database";
 
 export async function GET() {
   try {
@@ -44,11 +45,11 @@ export async function GET() {
 
     const applications = applicationsResult.rows.map((row: any) => ({
       id: row.id,
-      jobId: row.jobId,
-      workerId: row.workerId,
+      jobId: row["jobId"],
+      workerId: row["workerId"],
       status: row.status,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      createdAt: row["createdAt"],
+      updatedAt: row["updatedAt"],
       job: {
         id: row.job_id,
         title: row.job_title,
@@ -75,10 +76,11 @@ export async function GET() {
 
     return NextResponse.json(applications);
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Applications error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: errorMessage },
       { status: 500 }
     );
   }
@@ -162,8 +164,9 @@ export async function POST(req: NextRequest) {
       application 
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Application error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: "Internal server error", details: errorMessage }, { status: 500 });
   }
 }

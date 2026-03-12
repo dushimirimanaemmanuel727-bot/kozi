@@ -19,13 +19,13 @@ export default async function AnalyticsPage() {
     // User growth over last 6 months - group by month
     query`
       SELECT 
-        DATE_TRUNC('month', "createdAt") as month,
+        DATE_TRUNC('month', "createdat") as month,
         COUNT(*) as users,
         COUNT(CASE WHEN role = 'worker' THEN 1 END) as workers,
         COUNT(CASE WHEN role = 'employer' THEN 1 END) as employers
       FROM "User" 
-      WHERE "createdAt" >= NOW() - INTERVAL '6 months'
-      GROUP BY DATE_TRUNC('month', "createdAt")
+      WHERE "createdat" >= NOW() - INTERVAL '6 months'
+      GROUP BY DATE_TRUNC('month', "createdat")
       ORDER BY month DESC
     `,
     

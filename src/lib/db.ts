@@ -1,10 +1,11 @@
 import { Pool, PoolClient } from 'pg';
 import { PHASE_PRODUCTION_BUILD } from 'next/constants';
+import { QueryResult } from '@/types/database';
 
 // Database connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: false // Always disable SSL for Docker containers
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false // Always disable SSL for Docker containers
 });
 
 let initStarted = false;
@@ -15,7 +16,7 @@ export async function getConnection(): Promise<PoolClient> {
 }
 
 // Query helper
-export async function query(text: string | TemplateStringsArray, params?: any[]): Promise<any> {
+export async function query<T = any>(text: string | TemplateStringsArray, params?: any[]): Promise<QueryResult<T>> {
   const client = await getConnection();
   try {
     const queryString = typeof text === 'string' ? text : text.join('');

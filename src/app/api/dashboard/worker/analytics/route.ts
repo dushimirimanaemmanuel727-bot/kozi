@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { Application, Job, User, WorkerProfile } from "@/types/database";
 
 interface TrendRow {
   month: string;
@@ -62,7 +63,7 @@ export async function GET() {
     const workerUserResult = await query('SELECT district FROM "User" WHERE id = $1', [worker.id]);
     const workerUser = workerUserResult.rows[0];
 
-    let recommendedJobs: any[] = [];
+    let recommendedJobs: (Job & { employer_name: string; applications_count: string })[] = [];
     if (workerProfile) {
       const recommendedResult = await query(
         `SELECT j.*, u.name as employer_name, 
@@ -73,7 +74,7 @@ export async function GET() {
          ORDER BY j."createdAt" DESC LIMIT 6`,
         [workerProfile.category, workerUser?.district]
       );
-      recommendedJobs = recommendedResult.rows.map((row: any) => ({
+      recommendedJobs = recommendedResult.rows.map((row: Job & { employer_name: string; applications_count: string }) => ({
         ...row,
         employer: { name: row.employer_name },
         _count: { applications: parseInt(row.applications_count) }
@@ -90,7 +91,7 @@ export async function GET() {
        ORDER BY a."createdAt" DESC LIMIT 5`,
       [worker.id]
     );
-    const recentApplications = recentApplicationsResult.rows.map((row: any) => ({
+    const recentApplications = recentApplicationsResult.rows.map((row: Application & { job_title: string; job_category: string; employer_name: string }) => ({
       ...row,
       job: { 
         title: row.job_title, 
@@ -123,7 +124,7 @@ export async function GET() {
       }
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Worker dashboard analytics error:", error);
     return NextResponse.json(
       { 

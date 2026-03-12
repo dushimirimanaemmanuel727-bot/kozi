@@ -25,7 +25,7 @@ export default async function SystemPage() {
       FROM "User"
       GROUP BY role
       ORDER BY _count DESC
-    `,
+    `.then(result => result.rows),
     
     // Job statistics by status
     query`
@@ -35,7 +35,7 @@ export default async function SystemPage() {
         COALESCE(AVG(budget), 0) as _avg_budget
       FROM "Job"
       GROUP BY status
-    `,
+    `.then(result => result.rows),
     
     // Application statistics by status
     query`
@@ -44,7 +44,7 @@ export default async function SystemPage() {
         COUNT(*) as _count
       FROM "Application"
       GROUP BY status
-    `,
+    `.then(result => result.rows),
     
     // Verification statistics
     query`
@@ -53,7 +53,7 @@ export default async function SystemPage() {
         COUNT(*) as _count
       FROM "Verification"
       GROUP BY status
-    `,
+    `.then(result => result.rows),
     
     // Review statistics
     query('SELECT COUNT(*) as _count, COALESCE(AVG(rating), 0) as _avg_rating, COALESCE(MIN(rating), 0) as _min_rating, COALESCE(MAX(rating), 0) as _max_rating FROM "Review"')
@@ -71,7 +71,7 @@ export default async function SystemPage() {
         COUNT(*) as _count
       FROM "Notification"
       GROUP BY read
-    `,
+    `.then(result => result.rows),
     
     // System health metrics
     query`
@@ -85,7 +85,7 @@ export default async function SystemPage() {
         (SELECT COUNT(*) FROM "User" WHERE "createdAt" >= NOW() - INTERVAL '30 days') as new_users_month,
         (SELECT COUNT(*) FROM "Job" WHERE "createdAt" >= NOW() - INTERVAL '30 days') as new_jobs_month,
         (SELECT COUNT(*) FROM "Application" WHERE "createdAt" >= NOW() - INTERVAL '30 days') as new_applications_month
-    `,
+    `.then(result => result.rows),
     
     // Recent system activity
     query`
@@ -121,7 +121,7 @@ export default async function SystemPage() {
       
       ORDER BY "createdAt" DESC
       LIMIT 20
-    `,
+    `.then(result => result.rows),
     
     // Simulated error logs (in a real app, these would come from a logging system)
     Promise.resolve([

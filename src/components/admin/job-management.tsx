@@ -58,7 +58,7 @@ export function JobManagement({ session, jobs, stats, categoryStats, recentActiv
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.employer.name.toLowerCase().includes(searchTerm.toLowerCase());
+                         job.employer_name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = selectedStatus === "ALL" || job.status === selectedStatus;
     const matchesCategory = selectedCategory === "ALL" || job.category === selectedCategory;
     
@@ -69,7 +69,7 @@ export function JobManagement({ session, jobs, stats, categoryStats, recentActiv
   const totalJobs = jobs.length;
   const openJobs = jobs.filter(j => j.status === 'OPEN').length;
   const closedJobs = jobs.filter(j => j.status === 'CLOSED').length;
-  const totalApplications = jobs.reduce((sum, job) => sum + job._count.applications, 0);
+  const totalApplications = jobs.reduce((sum, job) => sum + (job.application_count || 0), 0);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -207,7 +207,7 @@ export function JobManagement({ session, jobs, stats, categoryStats, recentActiv
                 <option value="ALL">All Categories</option>
                 {categoryStats.map((cat: any) => (
                   <option key={cat.category} value={cat.category}>
-                    {cat.category} ({cat._count.id})
+                    {cat.category} ({cat.count})
                   </option>
                 ))}
               </select>
@@ -262,8 +262,8 @@ export function JobManagement({ session, jobs, stats, categoryStats, recentActiv
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="text-sm font-medium">{job.employer.name}</p>
-                      <p className="text-xs text-gray-500">{job.employer.phone}</p>
+                      <p className="text-sm font-medium">{job.employer_name}</p>
+                      <p className="text-xs text-gray-500">{job.employer_phone}</p>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -277,7 +277,7 @@ export function JobManagement({ session, jobs, stats, categoryStats, recentActiv
                   <TableCell>
                     <div className="flex items-center">
                       <Users className="w-4 h-4 mr-1 text-gray-400" />
-                      <span className="text-sm">{job._count.applications}</span>
+                      <span className="text-sm">{job.application_count || 0}</span>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-middleware";
 import { query } from "@/lib/db";
+import { User } from "@/types/database";
 
 // POST suspend/unsuspend user
 export async function POST(
@@ -68,10 +67,11 @@ export async function POST(
       message: suspended ? "User suspended successfully" : "User unsuspended successfully",
       user: updatedUser
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating user suspension:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to update user suspension status" },
+      { error: "Failed to update user suspension status", details: errorMessage },
       { status: 500 }
     );
   }

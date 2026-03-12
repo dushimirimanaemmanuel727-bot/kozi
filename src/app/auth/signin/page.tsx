@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Phone, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, getCsrfToken } from "next-auth/react";
 import Link from "next/link";
 import { useNotifications } from "@/components/ui/notification-toast";
 import { useLanguage } from "@/contexts/language-context";
@@ -15,9 +15,14 @@ export default function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
   const { showNotification } = useNotifications();
   const { translate } = useLanguage();
+
+  useEffect(() => {
+    getCsrfToken().then(token => setCsrfToken(token || ""));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

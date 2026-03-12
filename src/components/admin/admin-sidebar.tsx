@@ -29,7 +29,7 @@ const adminNavItems = [
   { href: "/admin/reviews", label: "Reviews", icon: MessageSquare },
   { href: "/admin/organizations", label: "Organizations", icon: Building },
   { href: "/admin/system", label: "System", icon: Settings },
-  { href: "/admin/logs", label: "Logs", icon: Database },
+  { href: "/admin/system", label: "Logs", icon: Database },
 ];
 
 export function AdminSidebar() {
@@ -50,14 +50,14 @@ export function AdminSidebar() {
       </div>
       
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-        {adminNavItems.map((item) => {
+        {adminNavItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || 
                          (item.href !== "/admin" && pathname.startsWith(item.href));
           
           return (
             <Link
-              key={item.href}
+              key={`${item.href}-${index}`}
               href={item.href}
               className={cn(
                 "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200",

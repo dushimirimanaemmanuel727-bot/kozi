@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-middleware";
 import { query } from "@/lib/db";
+import { User, WorkerProfile, EmployerProfile } from "@/types/database";
 
 // GET all users (admin only)
 export async function GET(request: NextRequest) {
@@ -26,7 +25,7 @@ export async function GET(request: NextRequest) {
       const headers = ['ID', 'Name', 'Phone', 'Email', 'Role', 'District', 'Languages', 'Created At'];
       const csvContent = [
         headers.join(','),
-        ...users.map((user: any) => [
+        ...users.map((user: User & { organization?: string; district?: string; languages?: string }) => [
           user.id,
           user.name,
           user.phone,
@@ -52,7 +51,7 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role') || '';
     
     let whereClause = 'WHERE 1=1';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     let paramIndex = 1;
 
     if (search) {
@@ -87,7 +86,16 @@ export async function GET(request: NextRequest) {
       query(`SELECT COUNT(*) as count FROM "User" u ${whereClause}`, params)
     ]);
     
-    const users = usersResult.rows.map((user: any) => ({
+    const users = usersResult.rows.map((user: User & { 
+      organization?: string; 
+      category?: string; 
+      experienceYears?: number; 
+      rating?: number; 
+      reviewCount?: number; 
+      minMonthlyPay?: number;
+      jobs_posted_count?: string;
+      applications_count?: string;
+    }) => ({
       ...user,
       employerProfile: user.organization ? { organization: user.organization } : null,
       workerProfile: user.category ? { 
@@ -98,15 +106,15 @@ export async function GET(request: NextRequest) {
         minMonthlyPay: user.minMonthlyPay ? Number(user.minMonthlyPay) : null
       } : null,
       _count: {
-        jobsPosted: parseInt(user.jobs_posted_count),
-        applications: parseInt(user.applications_count)
+        jobsPosted: parseInt(user.jobs_posted_count || '0'),
+        applications: parseInt(user.applications_count || '0')
       }
     }));
     
     const totalCount = parseInt(totalCountResult.rows[0].count);
     
     // Convert Decimal objects to plain numbers for serialization
-    const serializedUsers = users.map((user: any) => ({
+    const serializedUsers = users.map((user: typeof users[0]) => ({
       ...user,
       workerProfile: user.workerProfile ? {
         ...user.workerProfile,
@@ -123,10 +131,11 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(totalCount / limit)
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching users:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to fetch users" },
+      { error: "Failed to fetch users", details: errorMessage },
       { status: 500 }
     );
   }

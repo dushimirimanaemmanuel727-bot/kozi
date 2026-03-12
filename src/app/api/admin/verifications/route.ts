@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-middleware";
 import { query } from "@/lib/db";
+import { Verification, User, WorkerProfile } from "@/types/database";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || (session.user?.role !== "ADMIN" && session.user?.role !== "SUPERADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const session = await requireAdmin();
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
@@ -20,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     // Build WHERE conditions
     const whereConditions: string[] = [];
-    const queryParams: any[] = [];
+    const queryParams: (string | number)[] = [];
     let paramIndex = 1;
 
     if (status && status !== "ALL") {
@@ -83,7 +79,7 @@ export async function GET(request: NextRequest) {
       (page - 1) * limit
     ]);
 
-    // Format the response to match the expected structure
+    // Format the response to match expected structure
     const verifications = verificationsResult.rows.map((row: any) => ({
       id: row.id,
       userId: row.user_id,
@@ -117,10 +113,11 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit)
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching verifications:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to fetch verifications" },
+      { error: "Failed to fetch verifications", details: errorMessage },
       { status: 500 }
     );
   }
@@ -128,11 +125,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || (session.user?.role !== "ADMIN" && session.user?.role !== "SUPERADMIN")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const session = await requireAdmin();
 
     const { userId, type, status, issuedAt, expiresAt } = await request.json();
 
@@ -152,10 +145,11 @@ export async function POST(request: NextRequest) {
     const verification = verificationResult.rows[0];
 
     return NextResponse.json(verification);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error creating verification:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to create verification" },
+      { error: "Failed to create verification", details: errorMessage },
       { status: 500 }
     );
   }

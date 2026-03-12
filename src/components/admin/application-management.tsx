@@ -61,14 +61,14 @@ export function ApplicationManagement({ session, applications, stats }: Applicat
   // Filter applications based on search and filters
   const filteredApplications = applications.filter(application => {
     const matchesSearch = 
-      application.worker.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      application.worker.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      application.worker.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      application.job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      application.job.employer.name.toLowerCase().includes(searchTerm.toLowerCase());
+      application.worker_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.worker_phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.worker_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.job_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.employer_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = selectedStatus === "ALL" || application.status === selectedStatus;
-    const matchesCategory = selectedCategory === "ALL" || application.job.category === selectedCategory;
+    const matchesCategory = selectedCategory === "ALL" || application.job_category === selectedCategory;
     
     return matchesSearch && matchesStatus && matchesCategory;
   });
@@ -273,23 +273,23 @@ export function ApplicationManagement({ session, applications, stats }: Applicat
                         <User className="w-4 h-4 text-gray-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{application.worker.name}</p>
-                        <p className="text-xs text-gray-500">ID: {application.worker.id.slice(0, 8)}</p>
+                        <p className="text-sm font-medium">{application.worker_name}</p>
+                        <p className="text-xs text-gray-500">ID: {application.workerId?.slice(0, 8)}</p>
                         <div className="flex items-center text-xs text-gray-500 mt-1">
                           <Phone className="w-3 h-3 mr-1" />
-                          {application.worker.phone}
+                          {application.worker_phone}
                         </div>
-                        {application.worker.email && (
+                        {application.worker_email && (
                           <div className="flex items-center text-xs text-gray-500">
                             <Mail className="w-3 h-3 mr-1" />
-                            {application.worker.email}
+                            {application.worker_email}
                           </div>
                         )}
-                        {application.worker.workerProfile && (
+                        {application.worker_rating && (
                           <div className="flex items-center text-xs text-gray-500 mt-1">
                             <Star className="w-3 h-3 mr-1 text-yellow-500" />
-                            {application.worker.workerProfile.rating.toFixed(1)} 
-                            ({application.worker.workerProfile.reviewCount} reviews)
+                            {application.worker_rating.toFixed(1)} 
+                            ({application.worker_reviews} reviews)
                           </div>
                         )}
                       </div>
@@ -297,12 +297,12 @@ export function ApplicationManagement({ session, applications, stats }: Applicat
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="text-sm font-medium">{application.job.title}</p>
-                      <p className="text-xs text-gray-500">{application.job.category}</p>
-                      {application.job.budget && (
+                      <p className="text-sm font-medium">{application.job_title}</p>
+                      <p className="text-xs text-gray-500">{application.job_category}</p>
+                      {application.job_budget && (
                         <div className="flex items-center text-xs text-green-600 mt-1">
                           <DollarSign className="w-3 h-3 mr-1" />
-                          {application.job.budget.toLocaleString()} RWF
+                          {application.job_budget.toLocaleString()} RWF
                         </div>
                       )}
                     </div>
@@ -313,18 +313,16 @@ export function ApplicationManagement({ session, applications, stats }: Applicat
                         <Building className="w-4 h-4 text-gray-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{application.job.employer.name}</p>
-                        {application.job.employer.employerProfile?.organization && (
-                          <p className="text-xs text-gray-500">
-                            {application.job.employer.employerProfile.organization}
-                          </p>
+                        <p className="text-sm font-medium">{application.employer_name}</p>
+                        {application.employer_phone && (
+                          <p className="text-xs text-gray-500">{application.employer_phone}</p>
                         )}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={getCategoryColor(application.job.category)}>
-                      {application.job.category}
+                    <Badge className={getCategoryColor(application.job_category)}>
+                      {application.job_category}
                     </Badge>
                   </TableCell>
                   <TableCell>

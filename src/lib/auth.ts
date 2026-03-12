@@ -13,6 +13,11 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
+          console.log('Auth: Starting authorization with credentials:', {
+            phone: credentials?.phone,
+            hasPassword: !!credentials?.password
+          });
+
           if (!credentials?.phone || !credentials?.password) {
             console.log('Auth: Missing credentials');
             return null;
@@ -22,7 +27,12 @@ export const authOptions: NextAuthOptions = {
 
           const user = await verifyPassword(credentials.phone, credentials.password);
 
-          console.log('Auth: User found:', !!user);
+          console.log('Auth: User verification result:', {
+            userFound: !!user,
+            userId: user?.id,
+            userName: user?.name,
+            userRole: user?.role
+          });
           
           if (!user) {
             console.log('Auth: User not found or invalid password');
@@ -30,13 +40,15 @@ export const authOptions: NextAuthOptions = {
           }
 
           console.log('Auth: Login successful for:', user.name);
-          return {
+          const result = {
             id: user.id,
             name: user.name,
             email: user.email,
             role: user.role,
             phone: user.phone,
           };
+          console.log('Auth: Returning user object:', result);
+          return result;
         } catch (error) {
           console.error('Auth: Error during authorization:', error);
           return null;
@@ -68,5 +80,6 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
     signOut: "/"
   },
-  debug: process.env.NODE_ENV === 'development'
+  debug: process.env.NODE_ENV === 'development',
+  useSecureCookies: false,
 };

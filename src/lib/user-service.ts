@@ -70,7 +70,8 @@ export async function createUser(userData: CreateUserData): Promise<User> {
 export async function verifyPassword(phone: string, password: string): Promise<User | null> {
   const user = await findUserByPhone(phone);
   
-  const hash = user?.passwordHash;
+  // Check both possible password hash field names
+  const hash = user?.passwordHash || user?.passwordhash;
   if (!user || !hash) {
     return null;
   }
@@ -110,7 +111,7 @@ export async function updateUser(id: string, updates: Partial<CreateUserData>): 
 // Delete user
 export async function deleteUser(id: string): Promise<boolean> {
   const result = await query('DELETE FROM "User" WHERE id = $1', [id]);
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
 // Get all users with pagination

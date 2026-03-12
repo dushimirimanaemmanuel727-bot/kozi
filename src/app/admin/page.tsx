@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-middleware";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
 import { query } from "@/lib/db";
+import { User, Job } from "@/types/database";
 
 export default async function AdminPage() {
   const session = await requireAdmin();
@@ -77,13 +78,13 @@ export default async function AdminPage() {
   const prevMonthApplications = parseInt(prevMonthApplicationsResult.rows[0].count);
   const prevMonthVerifications = parseInt(prevMonthVerificationsResult.rows[0].count);
 
-  const recentUsers = recentUsersResult.rows.map((u: any) => ({
+  const recentUsers = recentUsersResult.rows.map((u: User & { organization?: string; category?: string }) => ({
     ...u,
     employerProfile: u.organization ? { organization: u.organization } : null,
     workerProfile: u.category ? { category: u.category } : null
   }));
 
-  const activeJobs = activeJobsResult.rows.map((j: any) => ({
+  const activeJobs = activeJobsResult.rows.map((j: Job & { employer_name: string; application_count: string }) => ({
     ...j,
     employer: { name: j.employer_name },
     applications: new Array(parseInt(j.application_count)).fill({})

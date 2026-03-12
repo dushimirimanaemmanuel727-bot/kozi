@@ -70,10 +70,10 @@ export default async function JobsPage() {
   return (
     <JobManagement 
       session={session}
-      jobs={jobs}
-      stats={jobStats}
-      categoryStats={categoryStats}
-      recentActivity={recentActivity}
+      jobs={jobs.rows}
+      stats={jobStats.rows}
+      categoryStats={categoryStats.rows}
+      recentActivity={recentActivity.rows}
     />
   );
 }

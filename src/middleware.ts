@@ -1,8 +1,39 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { rateLimit } from "./lib/rate-limiter";
+import { securityHeaders } from "./lib/security-headers";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Security headers
+  const response = NextResponse.next();
+  securityHeaders(response);
+
+  // Rate limiting
+  const rateLimitResult = await rateLimit(request);
+  if (rateLimitResult.limited) {
+    return NextResponse.json(
+      {
+        error: "Too many requests",
+        message: "Rate limit exceeded. Please try again later."
+      },
+      { status: 429 }
+    );
+  }
+
+  // Debug endpoint protection - disable in production
+  if (process.env.NODE_ENV === 'production') {
+    if (pathname.startsWith('/api/debug/')) {
+      return NextResponse.json(
+        {
+          error: "Endpoint not found",
+          message: "Debug endpoints are disabled in production"
+        },
+        { status: 404 }
+      );
+    }
+  }
 
   // Allow access to auth pages, API routes, and static files
   if (

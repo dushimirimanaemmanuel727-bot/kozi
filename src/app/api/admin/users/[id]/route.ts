@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-middleware";
 import { query } from "@/lib/db";
+import { User, WorkerProfile } from "@/types/database";
 
 // GET user by ID
 export async function GET(
@@ -34,10 +33,11 @@ export async function GET(
     };
 
     return NextResponse.json({ user: serializedUser });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching user:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to fetch user" },
+      { error: "Failed to fetch user", details: errorMessage },
       { status: 500 }
     );
   }
@@ -63,7 +63,7 @@ export async function PUT(
       );
     }
 
-    const updateData: any = {};
+    const updateData: Partial<Pick<User, 'name' | 'email' | 'phone' | 'role'>> = {};
     if (name) updateData.name = name;
     if (email) updateData.email = email;
     if (phone) updateData.phone = phone;
@@ -112,10 +112,11 @@ export async function PUT(
     };
 
     return NextResponse.json({ user: serializedUser });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating user:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to update user" },
+      { error: "Failed to update user", details: errorMessage },
       { status: 500 }
     );
   }
@@ -165,10 +166,11 @@ export async function DELETE(
     );
 
     return NextResponse.json({ message: "User deleted successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting user:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to delete user" },
+      { error: "Failed to delete user", details: errorMessage },
       { status: 500 }
     );
   }

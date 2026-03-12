@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { Job, Application, User, WorkerProfile } from "@/types/database";
 
 export async function GET() {
   try {
@@ -96,10 +97,11 @@ export async function GET() {
       popularCategories
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Dashboard analytics error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: errorMessage },
       { status: 500 }
     );
   }
