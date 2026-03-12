@@ -9,9 +9,10 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - DATABASE_URL=postgresql://kazi_user:kazi_password@postgres:5432/kazi_home
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=your-secret-key-change-in-production
+      - JWT_SECRET=your-jwt-secret-change-in-production
     depends_on:
       - postgres
     restart: unless-stopped
