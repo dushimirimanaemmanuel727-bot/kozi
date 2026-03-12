@@ -263,7 +263,7 @@ export async function runAuthenticationDiagnostics() {
         await query("SELECT 1");
         return { success: true, message: "Database connected" };
       } catch (error) {
-        return { success: false, message: error.message };
+        return { success: false, message: error instanceof Error ? error.message : 'Unknown error occurred' };
       }
     }},
     { name: "User Table Check", test: async () => {
@@ -277,7 +277,7 @@ export async function runAuthenticationDiagnostics() {
           message: `${result.rows[0].count} users with password hashes` 
         };
       } catch (error) {
-        return { success: false, message: error.message };
+        return { success: false, message: error instanceof Error ? error.message : 'Unknown error occurred' };
       }
     }},
     { name: "Suspended Users Check", test: async () => {
@@ -288,7 +288,7 @@ export async function runAuthenticationDiagnostics() {
           message: `${result.rows[0].count} suspended users` 
         };
       } catch (error) {
-        return { success: false, message: error.message };
+        return { success: false, message: error instanceof Error ? error.message : 'Unknown error occurred' };
       }
     }}
   ];

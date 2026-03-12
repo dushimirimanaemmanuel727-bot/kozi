@@ -13,7 +13,9 @@ const rateLimitMaxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '10
 const ipRequestCounts = new Map<string, { count: number; resetTime: number }>();
 
 export async function rateLimit(request: NextRequest): Promise<RateLimitResult> {
-  const ip = request.ip || 'unknown';
+  const ip = request.headers.get('x-forwarded-for') || 
+             request.headers.get('x-real-ip') || 
+             'unknown';
   const now = Date.now();
 
   // Clean up expired entries
