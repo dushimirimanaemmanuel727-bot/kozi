@@ -1,0 +1,231 @@
+# Render Configuration for Next.js Application
+# This configuration tells Render to build this as a Next.js app instead of trying to use a Dockerfile
+
+# Web Service Configuration
+web_service:
+  # Build command for Next.js
+  build_command: "npm run build"
+  
+  # Start command for Next.js
+  start_command: "npm start"
+  
+  # Port that the application runs on
+  port: 3000
+  
+  # Environment variables
+  environment:
+    - NODE_ENV=production
+    - PORT=3000
+    
+  # Health check configuration
+  health_check:
+    endpoint: "/api/health"
+    interval: 30
+    timeout: 5
+    retries: 3
+    
+  # Auto-start after build
+  auto_start: true
+  
+  # Build timeout (in seconds)
+  build_timeout: 900
+  
+  # Enable automatic deploys from Git
+  auto_deploy: true
+  
+  # Enable zero-downtime deploys
+  zero_downtime: true
+  
+  # Enable build caching
+  build_caching: true
+  
+  # Enable static asset optimization
+  static_assets:
+    - "/public"
+    - "/uploads"
+
+# Database Configuration (if using PostgreSQL)
+database:
+  # Database type (PostgreSQL, MySQL, etc.)
+  type: postgresql
+  
+  # Database name
+  name: kazi_home_db
+  
+  # Database user
+  user: kazi_home_user
+  
+  # Database password
+  password: ${DATABASE_PASSWORD}
+  
+  # Database host
+  host: ${DATABASE_HOST}
+  
+  # Database port
+  port: 5432
+  
+  # Connection string (optional)
+  connection_string: ${DATABASE_URL}
+
+# Environment Variables Configuration
+environment_variables:
+  # Database Configuration
+  DATABASE_URL: ${DATABASE_URL}
+  
+  # NextAuth Configuration
+  NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+  NEXTAUTH_URL: ${NEXTAUTH_URL}
+  
+  # Security Configuration
+  JWT_SECRET: ${JWT_SECRET}
+  SESSION_SECRET: ${SESSION_SECRET}
+  
+  # Rate Limiting Configuration
+  RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS}
+  RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS}
+  
+  # CORS Configuration
+  CORS_ORIGIN: ${CORS_ORIGIN}
+  CORS_CREDENTIALS: ${CORS_CREDENTIALS}
+  
+  # Security Headers
+  CSP_DIRECTIVE: ${CSP_DIRECTIVE}
+  
+  # Logging Configuration
+  LOG_LEVEL: ${LOG_LEVEL}
+  LOG_FORMAT: ${LOG_FORMAT}
+  
+  # Monitoring Configuration
+  SENTRY_DSN: ${SENTRY_DSN}
+  
+  # Email Configuration
+  SMTP_HOST: ${SMTP_HOST}
+  SMTP_PORT: ${SMTP_PORT}
+  SMTP_USER: ${SMTP_USER}
+  SMTP_PASS: ${SMTP_PASS}
+
+# Build Configuration
+build:
+  # Build environment
+  environment:
+    - NODE_ENV=production
+    - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+    
+  # Build dependencies
+  dependencies:
+    - "node:18-alpine"
+    - "npm:8.x"
+    
+  # Build cache
+  cache:
+    directories:
+      - ".next"
+      - "node_modules"
+
+# Deployment Configuration
+deployment:
+  # Deployment strategy
+  strategy: rolling
+  
+  # Deployment timeout
+  timeout: 600
+  
+  # Rollback configuration
+  rollback:
+    enabled: true
+    timeout: 300
+
+# Monitoring Configuration
+monitoring:
+  # Enable application metrics
+  metrics:
+    enabled: true
+    
+  # Enable error tracking
+  errors:
+    enabled: true
+    
+  # Enable request logging
+  requests:
+    enabled: true
+    
+  # Enable performance monitoring
+  performance:
+    enabled: true
+
+# Security Configuration
+security:
+  # Enable HTTPS
+  https:
+    enabled: true
+    
+  # Enable firewall
+  firewall:
+    enabled: true
+    
+  # Enable DDoS protection
+  ddos_protection:
+    enabled: true
+
+# Backup Configuration
+backup:
+  # Enable automatic backups
+  enabled: true
+  
+  # Backup schedule
+  schedule: "0 2 * * *"
+  
+  # Backup retention
+  retention: 30
+
+# Logging Configuration
+logging:
+  # Enable application logs
+  application:
+    enabled: true
+    
+  # Enable access logs
+  access:
+    enabled: true
+    
+  # Enable error logs
+  error:
+    enabled: true
+
+# Notifications Configuration
+notifications:
+  # Enable deployment notifications
+  deployment:
+    enabled: true
+    
+  # Enable error notifications
+  error:
+    enabled: true
+    
+  # Enable performance notifications
+  performance:
+    enabled: true
+
+# Custom Configuration
+custom:
+  # Enable Next.js specific optimizations
+  nextjs:
+    enabled: true
+    
+  # Enable static site generation
+  ssr:
+    enabled: true
+    
+  # Enable API routes
+  api_routes:
+    enabled: true
+
+# Documentation
+# This configuration file tells Render to:
+# 1. Build the Next.js application using npm run build
+# 2. Start the application using npm start
+# 3. Run on port 3000
+# 4. Configure all necessary environment variables
+# 5. Set up health checks and monitoring
+# 6. Enable automatic deployments from Git
+# 7. Configure security and backup settings
